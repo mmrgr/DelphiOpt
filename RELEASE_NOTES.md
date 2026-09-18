@@ -12,9 +12,10 @@
 
 ## Verification
 
-- `39 passed`
+- `44 passed`
 - Ruff and Python compilation passed.
 - Desktop source and packaged EXE smoke tests passed.
 - Custom local OpenAI-compatible endpoint test passed.
 - GitHub Actions matrix passed on Ubuntu, Windows, and macOS with Python 3.11 and 3.12.
-- EXE SHA256: `C3A569A07C40DB2E5AD92AB0E0518C379796D60099C16C4A68A3243F23E4C830`
+- Resumable checkpoints, `delphiopt resume`, provider capability checks, bounded concurrent probes, and interactive patch confirmation are included.
+- EXE SHA256: `600F3AC14C699EF416FB58DB5C9F705186B0FA73EBA23DE602E67B69934E4DE3`
