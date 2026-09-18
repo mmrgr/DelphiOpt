@@ -109,7 +109,11 @@ class OptimizationRuntime:
                 budget.record_elapsed(dynamic_profile.elapsed_seconds)
                 trace.record("dynamic_profile", result=dynamic_profile.to_dict())
                 if dynamic_profile.hotspots:
-                    context = f"{context}\nDynamic cProfile evidence:\n" + "\n".join(dynamic_profile.hotspots)
+                    context = (
+                        f"{context}\nDynamic profiling evidence ({dynamic_profile.profiler}, "
+                        f"peak_memory_mb={dynamic_profile.memory_peak_mb:.3f}, categories={dynamic_profile.categories}):\n"
+                        + "\n".join(dynamic_profile.hotspots)
+                    )
             except BudgetExhausted as exc:
                 trace.record("dynamic_profile", skipped=True, reason=str(exc))
         baseline = engine.run(benchmark_command, project_path, budget, baseline_gate.passed)

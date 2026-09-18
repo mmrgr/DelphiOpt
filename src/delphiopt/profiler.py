@@ -5,6 +5,7 @@ import os
 import re
 import shlex
 import subprocess
+import tempfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -68,13 +69,15 @@ class DynamicProfile:
     return_code: int
     elapsed_seconds: float = 0.0
     error: str = ""
+    memory_peak_mb: float = 0.0
+    profiler: str = "cProfile"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
 class DynamicProfiler:
-    """Run Python benchmark scripts under cProfile and classify observed hotspots."""
+    """Run Python benchmark scripts under cProfile and tracemalloc."""
 
     def __init__(self, sandbox: LocalSandbox | None = None) -> None:
         self.sandbox = sandbox or LocalSandbox()
@@ -84,8 +87,22 @@ class DynamicProfiler:
         if len(parts) < 2 or Path(parts[0]).name.lower() not in {"python", "python.exe", "python3", "python3.exe", "py", "py.exe"}:
             return DynamicProfile(command, [], {}, -1, error="dynamic profiling requires a Python benchmark command")
         profile_parts = [parts[0], "-m", "cProfile", "-s", "cumulative", *parts[1:]]
+        memory_peak_mb = 0.0
+        profiler_name = "cProfile"
+        temporary_dir: tempfile.TemporaryDirectory[str] | None = None
+        if len(parts) >= 2 and parts[1].lower().endswith(".py"):
+            temporary_dir = tempfile.TemporaryDirectory(prefix="delphiopt-profile-")
+            wrapper = Path(temporary_dir.name) / "profile_wrapper.py"
+            wrapper.write_text(_PROFILE_WRAPPER, encoding="utf-8")
+            target = (Path(project) / parts[1]).resolve()
+            profile_parts = [parts[0], str(wrapper), str(target), *parts[2:]]
+            profiler_name = "cProfile+tracemalloc"
         profile_command = subprocess.list2cmdline(profile_parts) if os.name == "nt" else shlex.join(profile_parts)
-        result = self.sandbox.run(profile_command, project, timeout_seconds)
+        try:
+            result = self.sandbox.run(profile_command, project, timeout_seconds)
+        finally:
+            if temporary_dir is not None:
+                temporary_dir.cleanup()
         if not result.ok:
             return DynamicProfile(
                 profile_command,
@@ -94,7 +111,11 @@ class DynamicProfiler:
                 result.return_code,
                 result.elapsed_seconds,
                 (result.stderr or result.stdout)[-2000:],
+                profiler=profiler_name,
             )
+        memory_match = _MEMORY_LINE.search(result.stdout)
+        if memory_match:
+            memory_peak_mb = float(memory_match.group(1))
         hotspots = [line.strip() for line in result.stdout.splitlines() if _PROFILE_LINE.match(line)][:12]
         categories = {"cpu": 0, "memory": 0, "io": 0, "locks": 0}
         for hotspot in hotspots:
@@ -107,7 +128,36 @@ class DynamicProfiler:
                 categories["memory"] += 1
             else:
                 categories["cpu"] += 1
-        return DynamicProfile(profile_command, hotspots, categories, result.return_code, result.elapsed_seconds)
+        return DynamicProfile(
+            profile_command,
+            hotspots,
+            categories,
+            result.return_code,
+            result.elapsed_seconds,
+            memory_peak_mb=memory_peak_mb,
+            profiler=profiler_name,
+        )
 
 
 _PROFILE_LINE = re.compile(r"^\s*\d+(?:/\d+)?\s+[\d.]+\s+[\d.]+\s+[\d.]+\s+[\d.]+\s+.+$")
+_MEMORY_LINE = re.compile(r"^DELPHIOPT_MEMORY_MB=([\d.]+)$", re.MULTILINE)
+
+_PROFILE_WRAPPER = """from __future__ import annotations
+
+import cProfile
+import runpy
+import sys
+import tracemalloc
+
+script, *arguments = sys.argv[1:]
+sys.argv = [script, *arguments]
+tracemalloc.start(10)
+profiler = cProfile.Profile()
+profiler.enable()
+runpy.run_path(script, run_name="__main__")
+profiler.disable()
+_, peak = tracemalloc.get_traced_memory()
+tracemalloc.stop()
+profiler.print_stats(sort="cumulative")
+print(f"DELPHIOPT_MEMORY_MB={peak / 1_048_576:.6f}")
+"""

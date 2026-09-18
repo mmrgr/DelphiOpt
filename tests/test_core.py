@@ -311,6 +311,8 @@ def test_dynamic_profiler_collects_python_hotspots(tmp_path: Path) -> None:
     assert profile.return_code == 0
     assert profile.hotspots
     assert profile.elapsed_seconds >= 0
+    assert profile.profiler == "cProfile+tracemalloc"
+    assert profile.memory_peak_mb > 0
 
 
 def test_config_returns_independent_mutable_values() -> None:

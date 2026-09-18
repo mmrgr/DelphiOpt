@@ -238,7 +238,7 @@ GitHub Actions runs the same lint, type-check, and coverage-gated test commands.
 
 Candidates run in independent temporary copies. `LocalSandbox` is convenient for development but executes commands on the host and must not be used for untrusted code. `DockerSandbox` provides the intended network-disabled, CPU/memory-limited execution path when Docker is available; production deployments should further restrict mounts and use read-only images.
 
-The runtime uses an explainable VOI policy and a deterministic Mock Provider for tests. Arbitrary transformations require a context-correct unified diff from the configured model. `DynamicProfiler` runs Python benchmark commands under `cProfile` and classifies CPU, memory, I/O, and lock-related hotspots; benchmark output can add measured memory values.
+The runtime uses an explainable VOI policy and a deterministic Mock Provider for tests. Arbitrary transformations require a context-correct unified diff from the configured model. `DynamicProfiler` runs Python benchmark scripts under `cProfile` plus `tracemalloc`, records peak memory, and classifies CPU, memory, I/O, and lock-related hotspots; benchmark output can add measured memory values.
 
 ## Roadmap
 
