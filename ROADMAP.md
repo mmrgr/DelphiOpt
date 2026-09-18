@@ -7,6 +7,6 @@
 
 ## Later
 
-- Expand the measured suite with external open-source projects and real-provider result sets.
+- Execute the three documented external-project recipes in a reproducible environment and publish real-provider result sets separately from Mock simulation.
 - Add richer Docker mounts and platform-specific resource controls.
 - Add a small local web report viewer and additional language adapters.

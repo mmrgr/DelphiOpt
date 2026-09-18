@@ -154,6 +154,8 @@ The thirty distinct fixtures under `benchmarks/tasks/` cover algorithm, loop-inv
 
 Each case keeps source, tests, benchmark, and metadata together so a result can be reproduced from a clean checkout.
 
+For projects beyond the included fixtures, see [`docs/real_project_cases.md`](docs/real_project_cases.md) for three concrete targets: `python/pyperformance`, `psf/pyperf`, and `psf/requests`. These recipes keep external repositories and measured results separate from the bundled Mock-provider suite.
+
 Run the budget-matched suite across single-agent, best-of-N, debate, fixed-scheduler, difficulty-router, and adaptive-Delphi conditions:
 
 ```powershell
