@@ -265,3 +265,8 @@ ROLLBACK_FIXTURE_COMMAND:
 python artifacts\ROLLBACK.sh ROLLBACK_TEST_FRONTEND_COPY.txt
 ROLLBACK_FIXTURE_LITERAL_OUTPUT: rollback: restored ROLLBACK_TEST_FRONTEND_COPY.txt; rollback fixture: PASS; restored branch=baseline field=control
 ROLLBACK_FIXTURE_RESULT: rollback exit status 0; restored behavior/status=branch=baseline, field=control
+
+GITHUB_CI_COMMAND:
+gh run watch 35318965748 --repo mmrgr/DelphiOpt --exit-status
+GITHUB_CI_LITERAL_OUTPUT: ✓ main ci · 35318965748; 6/6 matrix jobs passed (ubuntu/windows/macos × Python 3.11/3.12)
+GITHUB_CI_RESULT: exit status 0; commit=a38cc141c2635d9090bb0adc516392820f30a826
