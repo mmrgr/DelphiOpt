@@ -11,7 +11,7 @@ def main() -> None:
     tracemalloc.start()
     started = time.perf_counter()
     answer = 0
-    iterations = 5
+    iterations = 20
     for _ in range(iterations):
         answer = count_matches(values, wanted)
     runtime_ms = (time.perf_counter() - started) * 1000 / iterations
