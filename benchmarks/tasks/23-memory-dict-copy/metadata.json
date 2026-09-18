@@ -1,0 +1,15 @@
+{
+  "id": "23-memory-dict-copy",
+  "category": "memory-allocation",
+  "title": "repeated dictionary copy",
+  "known_optimization_opportunity": "mutate one accumulator rather than copying on every item",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

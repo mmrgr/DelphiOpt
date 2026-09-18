@@ -7,6 +7,7 @@ from .models import Proposal
 
 class CollaborationMode(StrEnum):
     SINGLE = "single"
+    BEST_OF_N = "best_of_n"
     DEBATE = "debate"
     DELPHI = "delphi"
 

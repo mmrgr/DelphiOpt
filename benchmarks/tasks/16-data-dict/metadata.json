@@ -1,0 +1,15 @@
+{
+  "id": "16-data-dict",
+  "category": "data-structures",
+  "title": "linear key lookup",
+  "known_optimization_opportunity": "materialize a dictionary for repeated key membership",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

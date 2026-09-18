@@ -1,0 +1,15 @@
+{
+  "id": "20-numerical-sum",
+  "category": "numerical-computing",
+  "title": "manual numeric sum",
+  "known_optimization_opportunity": "use the built-in numeric reduction",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

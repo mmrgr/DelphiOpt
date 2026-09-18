@@ -1,0 +1,15 @@
+{
+  "id": "22-memory-comprehension",
+  "category": "memory-allocation",
+  "title": "unnecessary intermediate list",
+  "known_optimization_opportunity": "stream the reduction instead of retaining an intermediate list",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

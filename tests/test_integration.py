@@ -94,3 +94,21 @@ def test_interrupted_run_resumes_from_checkpoint(tmp_path: Path) -> None:
     assert resumed.run_id == first.run_id
     assert resumed.rounds == 2
     assert any(event["event"] == "run_resumed" for event in events)
+
+
+def test_best_of_n_uses_bounded_independent_experts(tmp_path: Path) -> None:
+    project = tmp_path / "best-of-n"
+    project.mkdir()
+    (project / "target.py").write_text("def identity(value):\n    return value\n", encoding="utf-8")
+    (project / "tests.py").write_text("from target import identity\nassert identity(3) == 3\n", encoding="utf-8")
+    (project / "benchmark.py").write_text("import json\nprint(json.dumps({'runtime_ms': 1.0}))\n", encoding="utf-8")
+    config = load_config()
+    config["project"] = {"test_command": "python tests.py", "benchmark_command": "python benchmark.py"}
+    config["benchmark"].update({"warmups": 0, "repetitions": 1})
+    config["collaboration"] = {"mode": "best_of_n", "best_of_n": 3}
+    config["scheduler"]["strategy"] = "fixed"
+    config["delphi"]["max_rounds"] = 1
+    config["delphi"]["meaningful_speedup"] = 100.0
+    summary = OptimizationRuntime(config).optimize(project)
+    assert summary.status == "rejected"
+    assert summary.llm_calls == 3

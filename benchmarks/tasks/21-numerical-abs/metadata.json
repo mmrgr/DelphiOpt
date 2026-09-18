@@ -1,0 +1,15 @@
+{
+  "id": "21-numerical-abs",
+  "category": "numerical-computing",
+  "title": "manual absolute values",
+  "known_optimization_opportunity": "use the built-in absolute-value operation directly",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

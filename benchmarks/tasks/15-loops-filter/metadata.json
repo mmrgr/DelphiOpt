@@ -1,0 +1,15 @@
+{
+  "id": "15-loops-filter",
+  "category": "loops",
+  "title": "branch-heavy filter loop",
+  "known_optimization_opportunity": "use a compact predicate while preserving the filter semantics",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "17-data-tuple",
+  "category": "data-structures",
+  "title": "repeated tuple membership",
+  "known_optimization_opportunity": "use a set for immutable membership candidates",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

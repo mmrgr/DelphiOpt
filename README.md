@@ -146,7 +146,7 @@ project:
   benchmark_command: python benchmark.py
 ```
 
-The ten distinct fixtures under `benchmarks/tasks/` cover algorithm, loop-invariant work, data structures, string processing, numerical computing, memory allocation, I/O, serialization, concurrency, and caching. Every fixture has dedicated baseline code, correctness tests, benchmark workload, metadata, and known optimization opportunity. `benchmarks/generate_tasks.py` reproduces the dataset; commands generate measurements at run time. Three immediately runnable cases are:
+The thirty distinct fixtures under `benchmarks/tasks/` cover algorithm, loop-invariant work, data structures, string processing, numerical computing, memory allocation, I/O, serialization, concurrency, and caching. Every fixture has dedicated baseline code, correctness tests, benchmark workload, metadata, and known optimization opportunity. `benchmarks/generate_tasks.py` reproduces the dataset; commands generate measurements at run time. Three immediately runnable cases are:
 
 * `examples/demo_project` — request-style list membership hot loop; expected accepted set conversion.
 * `benchmarks/tasks/07-io` — repeated record parsing and I/O workload with correctness checks.
@@ -154,11 +154,21 @@ The ten distinct fixtures under `benchmarks/tasks/` cover algorithm, loop-invari
 
 Each case keeps source, tests, benchmark, and metadata together so a result can be reproduced from a clean checkout.
 
+Run the budget-matched suite across single-agent, best-of-N, debate, fixed-scheduler, difficulty-router, and adaptive-Delphi conditions:
+
+```powershell
+python analysis/run_suite.py --limit 3
+python analysis/run_suite.py --output analysis/suite_results.json
+```
+
+The output contains per-task correctness, success, speedup, cost, tokens, latency, calls, benchmark runs, and rounds, plus grouped aggregates. Mock-provider output is explicitly marked `simulation: true`; pass `--config` with real provider settings for a separate non-simulation report.
+
 ## Collaboration and ablation
 
 The same runtime supports:
 
 * `single` — one strong algorithm expert.
+* `best_of_n` — independent algorithm proposals from a bounded number of identical agents; only the best verified candidate can be accepted.
 * `debate` — peer proposal summaries are visible to later agents.
 * `delphi` — independent round one, anonymous controlled feedback, revision.
 
@@ -170,7 +180,7 @@ python analysis/summarize_results.py
 python analysis/render_charts.py
 ```
 
-The runner evaluates all three collaboration modes against `fixed`, `difficulty`, and `adaptive_voi` scheduling for both homogeneous and heterogeneous model pools on fresh project copies. `summarize_results.py` computes success, correctness, median/geometric speedup, cost, tokens, latency, calls, benchmark runs, convergence, diversity, calibration, model-selection frequency, expert reliability, cost per success, and verified speedup per dollar. `render_charts.py` creates HTML views for speedup, tokens, latency, diversity, convergence, round-by-round disagreement, expert reputation, and model-selection frequency. Mock results remain labeled `simulation: true`.
+The ablation runner evaluates single, debate, and Delphi collaboration against `fixed`, `difficulty`, and `adaptive_voi` scheduling for both homogeneous and heterogeneous model pools on fresh project copies; the suite runner additionally measures best-of-N. `summarize_results.py` computes success, correctness, median/geometric speedup, cost, tokens, latency, calls, benchmark runs, convergence, diversity, calibration, model-selection frequency, expert reliability, cost per success, and verified speedup per dollar. `render_charts.py` creates HTML views for speedup, tokens, latency, diversity, convergence, round-by-round disagreement, expert reputation, and model-selection frequency. Mock results remain labeled `simulation: true`.
 
 ## Trace and reports
 

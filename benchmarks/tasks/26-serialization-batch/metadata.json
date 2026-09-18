@@ -1,0 +1,15 @@
+{
+  "id": "26-serialization-batch",
+  "category": "serialization",
+  "title": "repeated JSON encoder setup",
+  "known_optimization_opportunity": "reuse serialization options and batch the workload",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

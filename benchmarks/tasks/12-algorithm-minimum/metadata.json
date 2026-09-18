@@ -1,0 +1,15 @@
+{
+  "id": "12-algorithm-minimum",
+  "category": "algorithm",
+  "title": "repeated prefix minimum",
+  "known_optimization_opportunity": "carry the running minimum through the prefix scan",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

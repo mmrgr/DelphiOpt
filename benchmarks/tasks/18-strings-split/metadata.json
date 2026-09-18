@@ -1,0 +1,15 @@
+{
+  "id": "18-strings-split",
+  "category": "string-processing",
+  "title": "repeated line splitting",
+  "known_optimization_opportunity": "split the source text once and reuse the tokens",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

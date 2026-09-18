@@ -1,0 +1,15 @@
+{
+  "id": "28-concurrency-events",
+  "category": "concurrency",
+  "title": "repeated event allocation",
+  "known_optimization_opportunity": "reuse synchronization state for the batch operation",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

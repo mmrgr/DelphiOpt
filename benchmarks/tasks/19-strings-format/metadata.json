@@ -1,0 +1,15 @@
+{
+  "id": "19-strings-format",
+  "category": "string-processing",
+  "title": "repeated format parsing",
+  "known_optimization_opportunity": "precompute stable formatting work outside the loop",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

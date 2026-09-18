@@ -1,0 +1,15 @@
+{
+  "id": "13-algorithm-sort",
+  "category": "algorithm",
+  "title": "repeated sort for first element",
+  "known_optimization_opportunity": "sort once before repeated reads",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

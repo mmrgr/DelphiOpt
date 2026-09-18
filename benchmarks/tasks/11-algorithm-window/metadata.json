@@ -1,0 +1,15 @@
+{
+  "id": "11-algorithm-window",
+  "category": "algorithm",
+  "title": "repeated window maximum",
+  "known_optimization_opportunity": "maintain a rolling maximum instead of rescanning each window",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

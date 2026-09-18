@@ -290,7 +290,7 @@ class DelphiOptDesktop(tk.Tk):
             row=0, column=0, columnspan=4, sticky="w", padx=22, pady=(17, 8)
         )
         controls: tuple[tuple[str, tk.Variable, tuple[str, ...] | None], ...] = (
-            ("协作模式", self.mode, ("单智能体", "直接辩论", "Delphi 协作")),
+            ("协作模式", self.mode, ("单智能体", "Best-of-N", "直接辩论", "Delphi 协作")),
             ("调度策略", self.scheduler, ("固定调度", "难度路由", "自适应 VOI")),
             ("费用预算（美元）", self.budget, None),
             ("最大轮数", self.rounds, None),
@@ -575,7 +575,7 @@ class DelphiOptDesktop(tk.Tk):
 
     @staticmethod
     def _mode_value(display: str) -> str:
-        return {"单智能体": "single", "直接辩论": "debate", "Delphi 协作": "delphi"}.get(display, display)
+        return {"单智能体": "single", "Best-of-N": "best_of_n", "直接辩论": "debate", "Delphi 协作": "delphi"}.get(display, display)
 
     @staticmethod
     def _scheduler_value(display: str) -> str:
@@ -852,7 +852,7 @@ class DelphiOptDesktop(tk.Tk):
 
         budget, scheduler, delphi = section("budget"), section("scheduler"), section("delphi")
         benchmark, sandbox, project = section("benchmark"), section("sandbox"), section("project")
-        mode_reverse = {"single": "单智能体", "debate": "直接辩论", "delphi": "Delphi 协作"}
+        mode_reverse = {"single": "单智能体", "best_of_n": "Best-of-N", "debate": "直接辩论", "delphi": "Delphi 协作"}
         scheduler_reverse = {"fixed": "固定调度", "difficulty": "难度路由", "difficulty_router": "难度路由", "adaptive_voi": "自适应 VOI"}
         self.seed.set(values.get("seed", 0))
         self.mode.set(mode_reverse.get(str(section("collaboration").get("mode", "delphi")), "Delphi 协作"))
@@ -1293,7 +1293,7 @@ def ui_smoke_test(output: Path) -> int:
         "geometry": app.geometry(),
         "pages": list(app.pages),
         "controls": {
-            "协作模式": ["单智能体", "直接辩论", "Delphi 协作"],
+            "协作模式": ["单智能体", "Best-of-N", "直接辩论", "Delphi 协作"],
             "调度策略": ["固定调度", "难度路由", "自适应 VOI"],
             "高级设置": [
                 "预算与调度", "基准测试", "Delphi 策略", "沙箱与项目",

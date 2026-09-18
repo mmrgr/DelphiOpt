@@ -1,0 +1,15 @@
+{
+  "id": "25-io-parse",
+  "category": "io",
+  "title": "repeated record parsing",
+  "known_optimization_opportunity": "parse delimited input in one pass with local bindings",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

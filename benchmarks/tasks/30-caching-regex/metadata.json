@@ -1,0 +1,15 @@
+{
+  "id": "30-caching-regex",
+  "category": "caching",
+  "title": "repeated pattern compilation",
+  "known_optimization_opportunity": "compile the stable pattern once before scanning records",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

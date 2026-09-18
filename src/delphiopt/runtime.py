@@ -166,6 +166,13 @@ class OptimizationRuntime:
         mode = CollaborationMode(str(self.config.get("collaboration", {}).get("mode", "delphi")))
         if mode == CollaborationMode.SINGLE:
             experts = {key: value for key, value in experts.items() if key == "algorithm"}
+        elif mode == CollaborationMode.BEST_OF_N:
+            base = experts["algorithm"]
+            count = max(2, int(self.config.get("collaboration", {}).get("best_of_n", 3)))
+            experts = {
+                f"algorithm_{index}": ExpertAgent(f"algorithm_{index}", base.persona, base.model_name, base.provider)
+                for index in range(1, count + 1)
+            }
         trace.record("collaboration_mode", mode=mode.value, expert_count=len(experts))
         implementer = ImplementationAgent()
         best_ms = baseline.median_ms
@@ -630,7 +637,8 @@ class OptimizationRuntime:
         if self.config is None:
             raise RuntimeError("runtime configuration was not initialized")
         models = self.config.get("models", {})
-        pool = [str(item) for item in self.config["experts"][expert_id].get("model_pool", []) if item in models]
+        settings = self.config["experts"].get(expert_id) or self.config["experts"].get(expert_id.rsplit("_", 1)[0], {})
+        pool = [str(item) for item in settings.get("model_pool", []) if item in models]
         priority = [str(item) for item in self.config.get("model_priority", []) if item in models]
         if requested in models:
             preferred = [requested]

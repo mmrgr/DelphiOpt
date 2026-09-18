@@ -1,0 +1,15 @@
+{
+  "id": "27-concurrency-lock",
+  "category": "concurrency",
+  "title": "lock around immutable reads",
+  "known_optimization_opportunity": "move invariant reads outside the critical section",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

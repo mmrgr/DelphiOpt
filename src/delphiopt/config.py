@@ -83,7 +83,7 @@ def validate_config(config: dict[str, Any]) -> None:
     if strategy not in {"fixed", "difficulty", "difficulty_router", "adaptive_voi", "voi"}:
         raise ValueError(f"unknown scheduler strategy: {strategy}")
     mode = str(config.get("collaboration", {}).get("mode", "delphi"))
-    if mode not in {"single", "debate", "delphi"}:
+    if mode not in {"single", "best_of_n", "debate", "delphi"}:
         raise ValueError(f"unknown collaboration mode: {mode}")
     for section, names in {
         "budget": ("max_cost_usd", "max_tokens", "max_latency_seconds", "max_llm_calls", "max_benchmark_runs", "max_tool_calls"),

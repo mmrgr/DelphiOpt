@@ -1,0 +1,15 @@
+{
+  "id": "14-loops-enumerate",
+  "category": "loops",
+  "title": "manual index accumulation",
+  "known_optimization_opportunity": "iterate directly over values and avoid repeated indexing",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

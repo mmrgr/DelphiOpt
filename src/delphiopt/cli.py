@@ -27,7 +27,7 @@ def build_parser() -> argparse.ArgumentParser:
     optimize.add_argument("--config")
     optimize.add_argument("--budget-usd", type=float)
     optimize.add_argument("--max-rounds", type=int)
-    optimize.add_argument("--mode", choices=("single", "debate", "delphi"))
+    optimize.add_argument("--mode", choices=("single", "best_of_n", "debate", "delphi"))
     optimize.add_argument("--dry-run", action="store_true", help="verify a candidate without writing source files")
     optimize.add_argument("--confirm", action="store_true", help="ask before applying a verified candidate")
     optimize.add_argument("--only-analyze", action="store_true", help="profile the project without calling models")

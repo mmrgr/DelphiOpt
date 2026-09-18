@@ -1,0 +1,15 @@
+{
+  "id": "24-io-buffer",
+  "category": "io",
+  "title": "repeated buffer reads",
+  "known_optimization_opportunity": "read the buffer once and process the resulting lines",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "29-caching-primes",
+  "category": "caching",
+  "title": "repeated divisor checks",
+  "known_optimization_opportunity": "cache previously classified values and avoid repeated divisor work",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}
