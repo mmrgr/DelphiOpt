@@ -279,6 +279,9 @@ LATEST_MAIN_CI_RESULT: exit status 0; 6/6 matrix jobs passed; commit=d68bfb4e12c
 LATEST_EXE_BUILD_COMMAND:
 powershell -NoProfile -ExecutionPolicy Bypass -File frontend\build_exe.ps1
 LATEST_EXE_BUILD_LITERAL_OUTPUT: Build complete! The results are available in: C:\Users\mmrgr\Documents\sjz\DelphiOpt\dist
-LATEST_EXE_BUILD_RESULT: exit status 0; SHA256=DF9AE61CBC002FCBE10565E911691A6118F224033FD3E2D90DE2B0104A16A69F; size=14918498 bytes
+LATEST_EXE_BUILD_RESULT: exit status 0; SHA256=C3A569A07C40DB2E5AD92AB0E0518C379796D60099C16C4A68A3243F23E4C830; size=14918766 bytes
 LATEST_EXE_SELF_TEST_LITERAL_OUTPUT: status=passed; models=2; experts=5; process exit status 0
 LATEST_EXE_UI_SMOKE_LITERAL_OUTPUT: status=通过; pages=6; settings_tabs=7; model_test=True; priority=True; layout_columns=4; process exit status 0
+LATEST_EXE_SELF_TEST_COMMAND: Start-Process dist\DelphiOpt.exe --self-test-output artifacts\desktop_exe_self_test_latest3.json -WindowStyle Hidden -Wait
+LATEST_EXE_UI_SMOKE_COMMAND: Start-Process dist\DelphiOpt.exe --ui-smoke-output artifacts\desktop_ui_smoke_latest3.json -WindowStyle Hidden -Wait
+LATEST_EXE_RETEST_LITERAL_OUTPUT: SELF=0 UI=0; status=passed; status=通过

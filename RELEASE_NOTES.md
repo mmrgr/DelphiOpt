@@ -17,4 +17,4 @@
 - Desktop source and packaged EXE smoke tests passed.
 - Custom local OpenAI-compatible endpoint test passed.
 - GitHub Actions matrix passed on Ubuntu, Windows, and macOS with Python 3.11 and 3.12.
-- EXE SHA256: `DF9AE61CBC002FCBE10565E911691A6118F224033FD3E2D90DE2B0104A16A69F`
+- EXE SHA256: `C3A569A07C40DB2E5AD92AB0E0518C379796D60099C16C4A68A3243F23E4C830`
