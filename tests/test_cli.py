@@ -14,6 +14,15 @@ def test_cli_lists_builtin_modes(capsys) -> None:
     assert "algorithm" in capsys.readouterr().out
 
 
+def test_cli_analysis_only_does_not_call_models(tmp_path: Path, capsys) -> None:
+    (tmp_path / "target.py").write_text(
+        "def f(values):\n    for value in values:\n        if value in values: return value\n", encoding="utf-8"
+    )
+    assert main(["optimize", str(tmp_path), "--only-analyze"]) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["findings"]
+
+
 def test_explicit_config_preserves_project_commands(tmp_path: Path) -> None:
     (tmp_path / "delphiopt.yaml").write_text("project:\n  test_command: python tests.py\n", encoding="utf-8")
     explicit = tmp_path / "explicit.yaml"

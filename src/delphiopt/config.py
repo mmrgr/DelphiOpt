@@ -19,7 +19,14 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "scheduler": {"strategy": "adaptive_voi", "base_tokens": 900, "tool_budget": 2},
     "collaboration": {"mode": "delphi"},
     "seed": 0,
-    "budget": {"max_cost_usd": 1.0, "max_tokens": 150000, "max_latency_seconds": 900, "max_llm_calls": 30, "max_benchmark_runs": 20, "max_tool_calls": 100},
+    "budget": {
+        "max_cost_usd": 1.0,
+        "max_tokens": 150000,
+        "max_latency_seconds": 900,
+        "max_llm_calls": 30,
+        "max_benchmark_runs": 40,
+        "max_tool_calls": 120,
+    },
     "delphi": {
         "max_rounds": 3,
         "disagreement_threshold": 0.08,
@@ -29,10 +36,27 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "min_utility_per_usd": 0.1,
         "no_improvement_rounds": 2,
         "minority_bonus": 0.12,
-        "candidate_weights": {"consensus": 0.25, "expected_gain": 0.25, "confidence": 0.2, "novelty": 0.12, "reputation": 0.1, "implementation_cost": 0.05, "correctness_risk": 0.03},
+        "candidate_weights": {
+            "consensus": 0.25,
+            "expected_gain": 0.25,
+            "confidence": 0.2,
+            "novelty": 0.12,
+            "reputation": 0.1,
+            "implementation_cost": 0.05,
+            "correctness_risk": 0.03,
+        },
     },
-    "benchmark": {"warmups": 2, "repetitions": 5, "metric": "median", "test_command": "pytest -q", "benchmark_command": "python benchmark.py", "timeout_seconds": 120},
-    "project": {"test_command": "pytest -q", "benchmark_command": "python benchmark.py"},
+    "benchmark": {
+        "warmups": 2,
+        "repetitions": 7,
+        "bootstrap_resamples": 2000,
+        "cpu_affinity": [],
+        "metric": "median",
+        "test_command": "pytest -q",
+        "benchmark_command": "python benchmark.py",
+        "timeout_seconds": 120,
+    },
+    "project": {"test_command": "pytest -q", "benchmark_command": "python benchmark.py", "max_modified_files": 3},
     "sandbox": {"type": "local", "network": False, "cpu_limit": 2, "memory_mb": 2048, "image": "python:3.12-slim"},
 }
 
@@ -57,7 +81,7 @@ def validate_config(config: dict[str, Any]) -> None:
         raise ValueError(f"unknown collaboration mode: {mode}")
     for section, names in {
         "budget": ("max_cost_usd", "max_tokens", "max_latency_seconds", "max_llm_calls", "max_benchmark_runs", "max_tool_calls"),
-        "benchmark": ("repetitions", "timeout_seconds"),
+        "benchmark": ("repetitions", "bootstrap_resamples", "timeout_seconds"),
         "delphi": ("max_rounds",),
     }.items():
         values = config.get(section, {})
@@ -71,7 +95,7 @@ def validate_config(config: dict[str, Any]) -> None:
     model_names = set(config["models"])
     priority = config.get("model_priority", [])
     if not isinstance(priority, list):
-        raise ValueError("model_priority must be a list")
+        raise TypeError("model_priority must be a list")
     if len(priority) != len(set(priority)):
         raise ValueError("model_priority must not contain duplicates")
     unknown_priority = set(priority) - model_names

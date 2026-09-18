@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import urllib.error
 from pathlib import Path
+from typing import Self
 
 from delphiopt.agents import ExpertAgent
 from delphiopt.benchmark import BenchmarkEngine
@@ -11,7 +13,7 @@ from delphiopt.config import DEFAULT_CONFIG, load_config
 from delphiopt.delphi import ConvergencePolicy, DelphiProtocol, StoppingPolicy
 from delphiopt.models import AgentResponse, BudgetLimits, Proposal
 from delphiopt.optimizer import CorrectnessGate, ImplementationAgent
-from delphiopt.profiler import StaticProfiler
+from delphiopt.profiler import DynamicProfiler, StaticProfiler
 from delphiopt.providers import HttpModelProvider, MockModelProvider, provider_from_config
 from delphiopt.reputation import ExpertReputationManager
 from delphiopt.sandbox import DockerSandbox, LocalSandbox, sandbox_from_config
@@ -101,7 +103,11 @@ def test_agent_repairs_invalid_output_and_uses_scheduled_tokens(tmp_path: Path) 
 
     provider = RepairProvider()
     tracer = RunTracer(tmp_path)
-    result = asyncio.run(ExpertAgent("algorithm", "Algorithm Expert", "repair-model", provider).analyze("context", BudgetManager(), tracer, 1, max_tokens=321))
+    result = asyncio.run(
+        ExpertAgent("algorithm", "Algorithm Expert", "repair-model", provider).analyze(
+            "context", BudgetManager(), tracer, 1, max_tokens=321
+        )
+    )
     assert result is not None
     assert provider.calls == [321, 321]
     assert any(event["event"] == "agent_error" for event in read_events(tmp_path, tracer.run_id))
@@ -115,7 +121,9 @@ def test_agent_provider_failure_is_isolated(tmp_path: Path) -> None:
             raise RuntimeError("rate limited")
 
     tracer = RunTracer(tmp_path)
-    result = asyncio.run(ExpertAgent("algorithm", "Algorithm Expert", "failing-model", FailingProvider()).analyze("context", BudgetManager(), tracer, 1))
+    result = asyncio.run(
+        ExpertAgent("algorithm", "Algorithm Expert", "failing-model", FailingProvider()).analyze("context", BudgetManager(), tracer, 1)
+    )
     assert result is None
     assert len([event for event in read_events(tmp_path, tracer.run_id) if event["event"] == "agent_error"]) == 2
 
@@ -146,13 +154,62 @@ def test_http_provider_requires_key(monkeypatch) -> None:
         raise AssertionError("missing provider key must fail")
 
 
+def test_http_provider_retries_transient_failures(monkeypatch) -> None:
+    attempts = 0
+
+    class Response:
+        def __enter__(self) -> Self:
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        def read(self) -> bytes:
+            return b'{"choices":[{"message":{"content":"ok"}}],"usage":{}}'
+
+    def fake_urlopen(*args: object, **kwargs: object) -> Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            raise urllib.error.URLError("temporary")
+        return Response()
+
+    monkeypatch.setenv("RETRY_KEY", "secret")
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    provider = HttpModelProvider("test", "https://example.invalid", "RETRY_KEY", "openai", max_retries=2, backoff_seconds=0)
+    response = asyncio.run(provider.generate("hello", model="x", max_tokens=10))
+    assert response.text == "ok"
+    assert attempts == 3
+
+
 def test_benchmark_collects_statistics(tmp_path: Path) -> None:
     script = tmp_path / "benchmark.py"
     script.write_text("import json; print(json.dumps({'runtime_ms': 4.0}))", encoding="utf-8")
-    result = BenchmarkEngine(warmups=1, repetitions=3).run("python benchmark.py", tmp_path, BudgetManager(BudgetLimits(max_benchmark_runs=10)))
+    result = BenchmarkEngine(warmups=1, repetitions=3).run(
+        "python benchmark.py", tmp_path, BudgetManager(BudgetLimits(max_benchmark_runs=10))
+    )
     assert result.return_code == 0
     assert result.median_ms == 4.0
     assert len(result.samples_ms) == 3
+    assert result.raw_samples_ms == [4.0, 4.0, 4.0]
+    assert result.environment["python"]
+
+
+def test_benchmark_compare_interleaves_and_bootstraps(tmp_path: Path) -> None:
+    baseline = tmp_path / "baseline"
+    candidate = tmp_path / "candidate"
+    baseline.mkdir()
+    candidate.mkdir()
+    for folder, runtime in ((baseline, 10.0), (candidate, 5.0)):
+        (folder / "benchmark.py").write_text(f"import json; print(json.dumps({{'runtime_ms': {runtime}}}))", encoding="utf-8")
+    budget = BudgetManager(BudgetLimits(max_benchmark_runs=20, max_tool_calls=20))
+    comparison = BenchmarkEngine(warmups=1, repetitions=3, bootstrap_resamples=100).compare(
+        "python benchmark.py", baseline, candidate, budget
+    )
+    assert comparison.speedup == 2.0
+    assert comparison.ci95_low >= 2.0
+    assert len(comparison.baseline.raw_samples_ms) == 3
+    assert budget.usage.benchmark_runs == 8
 
 
 def test_benchmark_counts_warmups_and_repetitions(tmp_path: Path) -> None:
@@ -189,8 +246,13 @@ def test_correctness_gate_stops_after_compile_failure(tmp_path: Path) -> None:
 
 
 def test_patch_and_correctness_gate(tmp_path: Path) -> None:
-    (tmp_path / "target.py").write_text("def count_matches(values, wanted):\n    count = 0\n    for value in values:\n        if value in wanted:\n            count += 1\n    return count\n", encoding="utf-8")
-    (tmp_path / "tests.py").write_text("from target import count_matches\nassert count_matches([1,2], [2]) == 1\nprint('pass')\n", encoding="utf-8")
+    (tmp_path / "target.py").write_text(
+        "def count_matches(values, wanted):\n    count = 0\n    for value in values:\n        if value in wanted:\n            count += 1\n    return count\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "tests.py").write_text(
+        "from target import count_matches\nassert count_matches([1,2], [2]) == 1\nprint('pass')\n", encoding="utf-8"
+    )
     patch = ImplementationAgent().apply(tmp_path, proposal("set membership", 1.4))
     assert patch.applied and "wanted = set(wanted)" in patch.diff
     assert CorrectnessGate().run(tmp_path, "python tests.py").passed
@@ -214,9 +276,19 @@ def test_trace_is_jsonl_and_readable(tmp_path: Path) -> None:
 
 
 def test_static_profiler_finds_hot_loop(tmp_path: Path) -> None:
-    (tmp_path / "target.py").write_text("def f(values, wanted):\n    for value in values:\n        if value in wanted: return value\n", encoding="utf-8")
+    (tmp_path / "target.py").write_text(
+        "def f(values, wanted):\n    for value in values:\n        if value in wanted: return value\n", encoding="utf-8"
+    )
     findings = StaticProfiler().analyze(tmp_path)
     assert findings and findings[0].loops == 1 and findings[0].membership_checks == 1
+
+
+def test_dynamic_profiler_collects_python_hotspots(tmp_path: Path) -> None:
+    (tmp_path / "benchmark.py").write_text("sum(range(1000))\n", encoding="utf-8")
+    profile = DynamicProfiler().profile("python benchmark.py", tmp_path, timeout_seconds=10)
+    assert profile.return_code == 0
+    assert profile.hotspots
+    assert profile.elapsed_seconds >= 0
 
 
 def test_config_returns_independent_mutable_values() -> None:
@@ -239,7 +311,9 @@ def test_proposal_schema_rejects_invalid_ranges() -> None:
 
 def test_stopping_and_convergence_policies() -> None:
     assert StoppingPolicy().evaluate(expected_speedup=1.001, expected_cost_usd=0.1, remaining_budget_ratio=1)[0]
-    assert ConvergencePolicy().evaluate(round_number=2, disagreement=0.01, ranking=("x",), previous_ranking=("x",), stagnant_rounds=1, remaining_budget_ratio=0.5)[0]
+    assert ConvergencePolicy().evaluate(
+        round_number=2, disagreement=0.01, ranking=("x",), previous_ranking=("x",), stagnant_rounds=1, remaining_budget_ratio=0.5
+    )[0]
 
 
 def test_sandbox_factory() -> None:

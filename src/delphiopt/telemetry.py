@@ -23,7 +23,10 @@ class RunTracer:
         connection = sqlite3.connect(self.sqlite_path)
         try:
             connection.execute("CREATE TABLE IF NOT EXISTS events (run_id TEXT, timestamp REAL, event TEXT, payload TEXT)")
-            connection.execute("INSERT INTO events VALUES (?, ?, ?, ?)", (self.run_id, time.time(), event.get("event", "unknown"), json.dumps(event, ensure_ascii=False)))
+            connection.execute(
+                "INSERT INTO events VALUES (?, ?, ?, ?)",
+                (self.run_id, time.time(), event.get("event", "unknown"), json.dumps(event, ensure_ascii=False)),
+            )
             connection.commit()
         finally:
             connection.close()

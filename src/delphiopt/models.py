@@ -73,6 +73,9 @@ class BenchmarkResult:
     return_code: int
     output: str = ""
     error: str = ""
+    raw_samples_ms: list[float] = field(default_factory=list)
+    excluded_samples_ms: list[float] = field(default_factory=list)
+    environment: dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -89,6 +92,7 @@ class SchedulingDecision:
     priority: float
     voi_score: float
     reason: str
+    action: str = "ask"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

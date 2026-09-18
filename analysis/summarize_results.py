@@ -44,7 +44,9 @@ def summarize(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "mean_benchmark_runs": statistics.mean(float(item.get("benchmark_runs", 0)) for item in items),
                 "mean_rounds": statistics.mean(float(item.get("rounds", 0)) for item in items),
                 "mean_proposal_diversity": statistics.mean(float(item.get("proposal_diversity", 0.0)) for item in items),
-                "mean_disagreement": statistics.mean(statistics.mean(item.get("round_disagreements", [0.0])) if item.get("round_disagreements") else 0.0 for item in items),
+                "mean_disagreement": statistics.mean(
+                    statistics.mean(item.get("round_disagreements", [0.0])) if item.get("round_disagreements") else 0.0 for item in items
+                ),
                 "calibration_error": statistics.mean(float(item.get("calibration_error", 0.0)) for item in items),
                 "prediction_error": statistics.mean(float(item.get("prediction_error", 0.0)) for item in items),
                 "model_selection_frequency": dict(sorted(model_counts.items())),

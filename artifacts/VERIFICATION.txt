@@ -222,3 +222,46 @@ SHA256=80255AB419B3A4D0742AFC8EB71BBA041B00E28EA03FD7845EBCD32ECB002B2B
 SIZE=14883259 bytes
 SELF_TEST_LITERAL_OUTPUT: status=passed; models=2; experts=5; process exit status 0
 UI_SMOKE_LITERAL_OUTPUT: status=通过; pages=6; settings_tabs=7; model_test=True; mock_test=True; priority=True; layout_columns=4; dpi=1.99803343166175; process exit status 0
+
+CORE_EVIDENCE_LOOP_AND_CI_VERIFICATION:
+Changed branch/field: branch=baseline -> branch=verified; field=control
+MODIFIED_FILE=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\MODIFIED_FILE.txt
+DIFF_FILE=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\DIFF_FILE.patch
+VERIFICATION=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\VERIFICATION.txt
+ROLLBACK=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ROLLBACK.sh
+
+CORE_TEST_COMMAND:
+python -m ruff check src tests analysis benchmarks\generate_tasks.py; python -m mypy src; python -m pytest --cov=delphiopt --cov-report=term-missing --cov-fail-under=80 -q
+CORE_TEST_LITERAL_OUTPUT:
+All checks passed!
+Success: no issues found in 19 source files
+39 passed; total coverage 88.30%
+CORE_TEST_RESULT: ruff exit status 0; mypy exit status 0; pytest exit status 0
+
+CLI_DRY_RUN_COMMAND:
+python -m delphiopt optimize examples\demo_project --dry-run --max-rounds 1
+CLI_DRY_RUN_LITERAL_OUTPUT:
+status=accepted_dry_run; correctness=true; stop_reason=verified improvement; dry-run left source unchanged
+CLI_DRY_RUN_RESULT: process exit status 0; source restored behavior/status=unchanged
+
+CLI_ANALYZE_COMMAND:
+python -m delphiopt optimize examples\demo_project --only-analyze
+CLI_ANALYZE_LITERAL_OUTPUT:
+dynamic_profile.return_code=0; dynamic_profile.hotspots=12; categories.cpu=9; categories.memory=1; categories.io=0; categories.locks=2
+CLI_ANALYZE_RESULT: process exit status 0
+
+BENCHMARK_EVIDENCE_RESULT:
+BenchmarkResult records raw_samples_ms, excluded_samples_ms, environment, bootstrap confidence intervals, and BenchmarkComparison randomly interleaves baseline/candidate runs. Scheduler decisions expose action=ask|skip|escalate|stop and include historical success, latency, estimated cost, and remaining-budget evidence.
+
+BASELINE_FIXTURE_COMMAND:
+python -c "from pathlib import Path; text=Path(r'artifacts/ORIGINAL_FILE.txt').read_text(); assert 'branch=baseline' in text and 'field=control' in text; print('baseline fixture: PASS')"
+BASELINE_FIXTURE_LITERAL_OUTPUT: baseline fixture: PASS
+BASELINE_FIXTURE_RESULT: exit status 0
+MODIFIED_FIXTURE_COMMAND:
+python -c "from pathlib import Path; text=Path(r'artifacts/MODIFIED_FILE.txt').read_text(); assert 'branch=verified' in text and 'field=control' in text; print('modified fixture: PASS')"
+MODIFIED_FIXTURE_LITERAL_OUTPUT: modified fixture: PASS
+MODIFIED_FIXTURE_RESULT: exit status 0; final state branch=verified field=control
+ROLLBACK_FIXTURE_COMMAND:
+python artifacts\ROLLBACK.sh ROLLBACK_TEST_FRONTEND_COPY.txt
+ROLLBACK_FIXTURE_LITERAL_OUTPUT: rollback: restored ROLLBACK_TEST_FRONTEND_COPY.txt; rollback fixture: PASS; restored branch=baseline field=control
+ROLLBACK_FIXTURE_RESULT: rollback exit status 0; restored behavior/status=branch=baseline, field=control

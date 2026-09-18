@@ -3,6 +3,5 @@ project:
   benchmark_command: python benchmark.py
 benchmark:
   warmups: 1
-  repetitions: 3
+  repetitions: 5
   timeout_seconds: 30
-

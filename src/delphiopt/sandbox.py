@@ -32,7 +32,16 @@ class LocalSandbox:
         started = time.perf_counter()
         display = command if isinstance(command, str) else subprocess.list2cmdline(command)
         try:
-            completed = subprocess.run(command, cwd=str(cwd), shell=shell, capture_output=True, text=True, timeout=timeout_seconds, env=os.environ.copy(), check=False)
+            completed = subprocess.run(
+                command,
+                cwd=str(cwd),
+                shell=shell,
+                capture_output=True,
+                text=True,
+                timeout=timeout_seconds,
+                env=os.environ.copy(),
+                check=False,
+            )
             return CommandResult(display, completed.returncode, completed.stdout, completed.stderr, time.perf_counter() - started)
         except subprocess.TimeoutExpired as exc:
             stdout = exc.stdout.decode(errors="replace") if isinstance(exc.stdout, bytes) else (exc.stdout or "")
@@ -50,7 +59,22 @@ class DockerSandbox(LocalSandbox):
         args = ["docker", "run", "--rm"]
         if not self.network:
             args.extend(["--network", "none"])
-        args.extend(["--cpus", str(self.cpu_limit), "--memory", f"{self.memory_mb}m", "-v", f"{Path(cwd).resolve()}:/workspace", "-w", "/workspace", self.image, "sh", "-lc", command])
+        args.extend(
+            [
+                "--cpus",
+                str(self.cpu_limit),
+                "--memory",
+                f"{self.memory_mb}m",
+                "-v",
+                f"{Path(cwd).resolve()}:/workspace",
+                "-w",
+                "/workspace",
+                self.image,
+                "sh",
+                "-lc",
+                command,
+            ]
+        )
         return self._execute(args, cwd, timeout_seconds, shell=False)
 
 
@@ -60,5 +84,10 @@ def sandbox_from_config(config: dict[str, Any] | None = None) -> LocalSandbox:
     if kind == "local":
         return LocalSandbox()
     if kind == "docker":
-        return DockerSandbox(cpu_limit=int(values.get("cpu_limit", 2)), memory_mb=int(values.get("memory_mb", 2048)), network=bool(values.get("network", False)), image=str(values.get("image", "python:3.12-slim")))
+        return DockerSandbox(
+            cpu_limit=int(values.get("cpu_limit", 2)),
+            memory_mb=int(values.get("memory_mb", 2048)),
+            network=bool(values.get("network", False)),
+            image=str(values.get("image", "python:3.12-slim")),
+        )
     raise ValueError(f"unknown sandbox type: {kind}")

@@ -30,7 +30,12 @@ class BudgetManager:
         self.usage.elapsed_seconds += response.latency_seconds
         self.usage.llm_calls += 1
         limits = self.limits
-        if self.usage.cost_usd > limits.max_cost_usd or self.usage.total_tokens > limits.max_tokens or self.usage.elapsed_seconds > limits.max_latency_seconds or self.usage.llm_calls > limits.max_llm_calls:
+        if (
+            self.usage.cost_usd > limits.max_cost_usd
+            or self.usage.total_tokens > limits.max_tokens
+            or self.usage.elapsed_seconds > limits.max_latency_seconds
+            or self.usage.llm_calls > limits.max_llm_calls
+        ):
             raise BudgetExhausted("global LLM budget exhausted after recording actual usage")
 
     def record_tool(self) -> None:

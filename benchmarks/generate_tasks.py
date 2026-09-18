@@ -100,7 +100,7 @@ import tracemalloc
 
 from baseline import workload
 
-{task['setup']}
+{task["setup"]}
 tracemalloc.start()
 started = time.perf_counter()
 result = workload(*args)

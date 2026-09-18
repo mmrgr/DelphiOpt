@@ -39,8 +39,8 @@ budget:
   max_tokens: 150000
   max_latency_seconds: 900
   max_llm_calls: 30
-  max_benchmark_runs: 20
-  max_tool_calls: 100
+  max_benchmark_runs: 40
+  max_tool_calls: 120
 
 delphi:
   max_rounds: 3
@@ -62,8 +62,13 @@ delphi:
 
 benchmark:
   warmups: 2
-  repetitions: 5
+  repetitions: 7
+  bootstrap_resamples: 2000
+  cpu_affinity: []
   timeout_seconds: 120
+
+project:
+  max_modified_files: 3
 
 sandbox:
   type: local

@@ -15,8 +15,7 @@ from .models import AgentResponse
 class ModelProvider(Protocol):
     name: str
 
-    async def generate(self, prompt: str, *, model: str, max_tokens: int, temperature: float = 0.2) -> AgentResponse:
-        ...
+    async def generate(self, prompt: str, *, model: str, max_tokens: int, temperature: float = 0.2) -> AgentResponse: ...
 
 
 def _tokens(text: str) -> int:
@@ -73,7 +72,15 @@ class MockModelProvider:
             }
         text = json.dumps(proposal)
         await asyncio.sleep(0)
-        return AgentResponse(text=text, input_tokens=_tokens(prompt), output_tokens=_tokens(text), cost_usd=0.0, latency_seconds=time.perf_counter() - started, model=model, provider=self.name)
+        return AgentResponse(
+            text=text,
+            input_tokens=_tokens(prompt),
+            output_tokens=_tokens(text),
+            cost_usd=0.0,
+            latency_seconds=time.perf_counter() - started,
+            model=model,
+            provider=self.name,
+        )
 
 
 @dataclass(slots=True)
@@ -85,6 +92,8 @@ class HttpModelProvider:
     input_price_per_million: float = 0.0
     output_price_per_million: float = 0.0
     timeout_seconds: float = 120.0
+    max_retries: int = 3
+    backoff_seconds: float = 0.5
 
     async def generate(self, prompt: str, *, model: str, max_tokens: int, temperature: float = 0.2) -> AgentResponse:
         return await asyncio.to_thread(self._generate_sync, prompt, model, max_tokens, temperature)
@@ -95,33 +104,62 @@ class HttpModelProvider:
             raise RuntimeError(f"{self.name} requires {self.api_key_env}")
         started = time.perf_counter()
         if self.style == "anthropic":
-            payload: dict[str, Any] = {"model": model, "max_tokens": max_tokens, "temperature": temperature, "messages": [{"role": "user", "content": prompt}]}
+            payload: dict[str, Any] = {
+                "model": model,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "messages": [{"role": "user", "content": prompt}],
+            }
             headers = {"x-api-key": key, "anthropic-version": "2023-06-01"}
         elif self.style == "gemini":
-            payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens}}
+            payload = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens},
+            }
             headers = {"x-goog-api-key": key}
         else:
-            payload = {"model": model, "max_tokens": max_tokens, "temperature": temperature, "messages": [{"role": "user", "content": prompt}]}
+            payload = {
+                "model": model,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "messages": [{"role": "user", "content": prompt}],
+            }
             headers = {"Authorization": f"Bearer {key}"}
         headers["Content-Type"] = "application/json"
         request = urllib.request.Request(self.endpoint, data=json.dumps(payload).encode(), headers=headers, method="POST")
-        try:
-            with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
-                body = json.loads(response.read().decode())
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode(errors="replace")[:1000]
-            raise RuntimeError(f"{self.name} HTTP {exc.code}: {detail}") from exc
-        except (urllib.error.URLError, TimeoutError) as exc:
-            raise RuntimeError(f"{self.name} request failed: {exc}") from exc
-        except json.JSONDecodeError as exc:
-            raise RuntimeError(f"{self.name} returned invalid JSON") from exc
+        for attempt in range(self.max_retries + 1):
+            try:
+                with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
+                    raw_body = response.read().decode()
+                try:
+                    body = json.loads(raw_body)
+                except json.JSONDecodeError as exc:
+                    raise RuntimeError(f"{self.name} returned invalid JSON") from exc
+                break
+            except urllib.error.HTTPError as exc:
+                detail = exc.read().decode(errors="replace")[:1000]
+                if exc.code not in {429, 500, 502, 503, 504} or attempt >= self.max_retries:
+                    raise RuntimeError(f"{self.name} HTTP {exc.code}: {detail}") from exc
+                time.sleep(self.backoff_seconds * (2**attempt))
+            except (urllib.error.URLError, TimeoutError) as exc:
+                if attempt >= self.max_retries:
+                    raise RuntimeError(f"{self.name} request failed: {exc}") from exc
+                time.sleep(self.backoff_seconds * (2**attempt))
         try:
             text = self._extract_text(body)
         except (KeyError, IndexError, TypeError) as exc:
             raise RuntimeError(f"{self.name} response did not contain generated text") from exc
         input_tokens, output_tokens = self._usage(body, prompt, text)
         cost = input_tokens / 1_000_000 * self.input_price_per_million + output_tokens / 1_000_000 * self.output_price_per_million
-        return AgentResponse(text=text, input_tokens=input_tokens, output_tokens=output_tokens, cost_usd=cost, latency_seconds=time.perf_counter() - started, model=model, provider=self.name)
+        return AgentResponse(
+            text=text,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cost_usd=cost,
+            latency_seconds=time.perf_counter() - started,
+            model=model,
+            provider=self.name,
+        )
 
     def _extract_text(self, body: dict[str, Any]) -> str:
         if self.style == "gemini":
@@ -148,10 +186,40 @@ def provider_from_config(config: dict[str, Any]) -> ModelProvider:
         return MockModelProvider()
     if provider in {"openai", "openai-compatible"}:
         endpoint = str(config.get("endpoint", "https://api.openai.com/v1/chat/completions"))
-        return HttpModelProvider(provider, endpoint, str(config.get("api_key_env", "OPENAI_API_KEY")), "openai", float(config.get("input_price_per_million", 0)), float(config.get("output_price_per_million", 0)), float(config.get("timeout_seconds", 120)))
+        return HttpModelProvider(
+            provider,
+            endpoint,
+            str(config.get("api_key_env", "OPENAI_API_KEY")),
+            "openai",
+            float(config.get("input_price_per_million", 0)),
+            float(config.get("output_price_per_million", 0)),
+            float(config.get("timeout_seconds", 120)),
+            int(config.get("max_retries", 3)),
+            float(config.get("backoff_seconds", 0.5)),
+        )
     if provider == "anthropic":
-        return HttpModelProvider(provider, str(config.get("endpoint", "https://api.anthropic.com/v1/messages")), str(config.get("api_key_env", "ANTHROPIC_API_KEY")), "anthropic", float(config.get("input_price_per_million", 0)), float(config.get("output_price_per_million", 0)), float(config.get("timeout_seconds", 120)))
+        return HttpModelProvider(
+            provider,
+            str(config.get("endpoint", "https://api.anthropic.com/v1/messages")),
+            str(config.get("api_key_env", "ANTHROPIC_API_KEY")),
+            "anthropic",
+            float(config.get("input_price_per_million", 0)),
+            float(config.get("output_price_per_million", 0)),
+            float(config.get("timeout_seconds", 120)),
+            int(config.get("max_retries", 3)),
+            float(config.get("backoff_seconds", 0.5)),
+        )
     if provider == "gemini":
         endpoint = str(config.get("endpoint", f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"))
-        return HttpModelProvider(provider, endpoint, str(config.get("api_key_env", "GEMINI_API_KEY")), "gemini", float(config.get("input_price_per_million", 0)), float(config.get("output_price_per_million", 0)), float(config.get("timeout_seconds", 120)))
+        return HttpModelProvider(
+            provider,
+            endpoint,
+            str(config.get("api_key_env", "GEMINI_API_KEY")),
+            "gemini",
+            float(config.get("input_price_per_million", 0)),
+            float(config.get("output_price_per_million", 0)),
+            float(config.get("timeout_seconds", 120)),
+            int(config.get("max_retries", 3)),
+            float(config.get("backoff_seconds", 0.5)),
+        )
     raise ValueError(f"unknown provider: {provider}")

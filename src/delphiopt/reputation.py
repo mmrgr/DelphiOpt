@@ -53,14 +53,34 @@ class ExpertReputationManager:
         item.brier_sum += (proposal.confidence - outcome) ** 2
         item.calibration_error_sum += abs(proposal.confidence - outcome)
         item.prediction_error_sum += abs(proposal.expected_speedup - actual_speedup)
-        item.reliability = 0.8 * item.reliability + 0.2 * (0.65 * outcome + 0.35 * (1 - min(1, abs(proposal.expected_speedup - actual_speedup))))
+        item.reliability = 0.8 * item.reliability + 0.2 * (
+            0.65 * outcome + 0.35 * (1 - min(1, abs(proposal.expected_speedup - actual_speedup)))
+        )
 
     def snapshot(self) -> dict[str, dict[str, float]]:
-        return {key: {"reliability": value.reliability, "brier_score": value.brier_score, "calibration_error": value.calibration_error, "prediction_error": value.prediction_error, "observations": float(value.observations)} for key, value in self._items.items()}
+        return {
+            key: {
+                "reliability": value.reliability,
+                "brier_score": value.brier_score,
+                "calibration_error": value.calibration_error,
+                "prediction_error": value.prediction_error,
+                "observations": float(value.observations),
+            }
+            for key, value in self._items.items()
+        }
 
     def full_snapshot(self) -> dict[str, dict[str, dict[str, float]]]:
         def serialize(items: dict[str, Reputation]) -> dict[str, dict[str, float]]:
-            return {key: {"reliability": value.reliability, "brier_sum": value.brier_sum, "observations": float(value.observations), "prediction_error_sum": value.prediction_error_sum, "calibration_error_sum": value.calibration_error_sum} for key, value in items.items()}
+            return {
+                key: {
+                    "reliability": value.reliability,
+                    "brier_sum": value.brier_sum,
+                    "observations": float(value.observations),
+                    "prediction_error_sum": value.prediction_error_sum,
+                    "calibration_error_sum": value.calibration_error_sum,
+                }
+                for key, value in items.items()
+            }
 
         return {"experts": serialize(self._items), "domains": serialize(self._domains)}
 
@@ -87,5 +107,11 @@ class ExpertReputationManager:
             return manager
         for section, destination in (("experts", manager._items), ("domains", manager._domains)):
             for key, values in data.get(section, {}).items():
-                destination[key] = Reputation(reliability=float(values.get("reliability", 0.5)), brier_sum=float(values.get("brier_sum", 0.0)), observations=int(values.get("observations", 0)), prediction_error_sum=float(values.get("prediction_error_sum", 0.0)), calibration_error_sum=float(values.get("calibration_error_sum", 0.0)))
+                destination[key] = Reputation(
+                    reliability=float(values.get("reliability", 0.5)),
+                    brier_sum=float(values.get("brier_sum", 0.0)),
+                    observations=int(values.get("observations", 0)),
+                    prediction_error_sum=float(values.get("prediction_error_sum", 0.0)),
+                    calibration_error_sum=float(values.get("calibration_error_sum", 0.0)),
+                )
         return manager

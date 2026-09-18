@@ -7,8 +7,8 @@ from pathlib import Path
 
 import yaml
 
-from frontend.app_backend import FrontendBackend
 from delphiopt.runtime import OptimizationRuntime
+from frontend.app_backend import FrontendBackend
 
 
 def test_frontend_exposes_catalog_and_configuration(tmp_path: Path) -> None:
@@ -70,15 +70,17 @@ def test_frontend_preserves_raw_yaml_extensions(tmp_path: Path) -> None:
 def test_frontend_tests_mock_model_and_runtime_priority_failover(tmp_path: Path) -> None:
     backend = FrontendBackend(tmp_path / "home")
     code, output = backend.test_model_connection({"provider": "mock", "model": "mock-custom"})
-    runtime = OptimizationRuntime({
-        "models": {
-            "first": {"provider": "mock", "model": "one"},
-            "second": {"provider": "mock", "model": "two"},
-        },
-        "experts": {"algorithm": {"persona": "test", "model_pool": ["first", "second"]}},
-        "model_priority": ["second", "first"],
-        "model_priority_enabled": True,
-    })
+    runtime = OptimizationRuntime(
+        {
+            "models": {
+                "first": {"provider": "mock", "model": "one"},
+                "second": {"provider": "mock", "model": "two"},
+            },
+            "experts": {"algorithm": {"persona": "test", "model_pool": ["first", "second"]}},
+            "model_priority": ["second", "first"],
+            "model_priority_enabled": True,
+        }
+    )
 
     assert code == 0
     assert "连接成功" in output
@@ -89,13 +91,15 @@ def test_frontend_tests_custom_openai_compatible_endpoint(tmp_path: Path) -> Non
     received: dict[str, object] = {}
 
     class Handler(BaseHTTPRequestHandler):
-        def do_POST(self) -> None:  # noqa: N802
+        def do_POST(self) -> None:
             body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             received.update({"path": self.path, "model": body["model"], "authorization": self.headers["Authorization"]})
-            payload = json.dumps({
-                "choices": [{"message": {"content": '{"status":"ok"}'}}],
-                "usage": {"prompt_tokens": 3, "completion_tokens": 2},
-            }).encode()
+            payload = json.dumps(
+                {
+                    "choices": [{"message": {"content": '{"status":"ok"}'}}],
+                    "usage": {"prompt_tokens": 3, "completion_tokens": 2},
+                }
+            ).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(payload)))
@@ -110,12 +114,15 @@ def test_frontend_tests_custom_openai_compatible_endpoint(tmp_path: Path) -> Non
     thread.start()
     try:
         backend = FrontendBackend(tmp_path / "home")
-        code, output = backend.test_model_connection({
-            "provider": "openai-compatible",
-            "model": "custom-model",
-            "endpoint": f"http://127.0.0.1:{server.server_port}/custom/chat",
-            "api_key_env": "CUSTOM_FRONTEND_TEST_KEY",
-        }, "secret-key")
+        code, output = backend.test_model_connection(
+            {
+                "provider": "openai-compatible",
+                "model": "custom-model",
+                "endpoint": f"http://127.0.0.1:{server.server_port}/custom/chat",
+                "api_key_env": "CUSTOM_FRONTEND_TEST_KEY",
+            },
+            "secret-key",
+        )
     finally:
         server.shutdown()
         server.server_close()

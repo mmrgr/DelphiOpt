@@ -41,7 +41,9 @@ class ImplementationAgent:
                 after[str(path.relative_to(root))] = changed
         lines: list[str] = []
         for name, changed in after.items():
-            lines.extend(difflib.unified_diff(before[name].splitlines(True), changed.splitlines(True), fromfile=f"a/{name}", tofile=f"b/{name}"))
+            lines.extend(
+                difflib.unified_diff(before[name].splitlines(True), changed.splitlines(True), fromfile=f"a/{name}", tofile=f"b/{name}")
+            )
         return PatchResult(bool(after), list(after), "".join(lines), self._explanation(proposal, after))
 
     def _apply_patch(self, root: Path, proposal: Proposal) -> PatchResult:
@@ -148,7 +150,15 @@ class CorrectnessGate:
     def __init__(self, sandbox: LocalSandbox | None = None) -> None:
         self.sandbox = sandbox or LocalSandbox()
 
-    def run(self, project: str | Path, test_command: str, timeout_seconds: float = 120, *, lint_command: str | None = None, budget: BudgetManager | None = None) -> GateResult:
+    def run(
+        self,
+        project: str | Path,
+        test_command: str,
+        timeout_seconds: float = 120,
+        *,
+        lint_command: str | None = None,
+        budget: BudgetManager | None = None,
+    ) -> GateResult:
         stages: list[CommandResult] = []
         commands = [("compile", "python -m compileall -q .")]
         if lint_command:

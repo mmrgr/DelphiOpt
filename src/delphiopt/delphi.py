@@ -33,7 +33,16 @@ class ConvergencePolicy:
     max_rounds: int = 3
     no_improvement_rounds: int = 2
 
-    def evaluate(self, *, round_number: int, disagreement: float, ranking: tuple[str, ...], previous_ranking: tuple[str, ...], stagnant_rounds: int, remaining_budget_ratio: float) -> tuple[bool, str]:
+    def evaluate(
+        self,
+        *,
+        round_number: int,
+        disagreement: float,
+        ranking: tuple[str, ...],
+        previous_ranking: tuple[str, ...],
+        stagnant_rounds: int,
+        remaining_budget_ratio: float,
+    ) -> tuple[bool, str]:
         if remaining_budget_ratio <= 0:
             return True, "global budget exhausted"
         if round_number >= self.max_rounds:
@@ -65,7 +74,15 @@ class StoppingPolicy:
 class DelphiProtocol:
     """Reusable independent elicitation -> anonymous feedback -> revision protocol."""
 
-    def __init__(self, *, reputation: ExpertReputationManager | None = None, max_rounds: int = 3, disagreement_threshold: float = 0.08, minority_bonus: float = 0.12, weights: CandidateWeights | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        reputation: ExpertReputationManager | None = None,
+        max_rounds: int = 3,
+        disagreement_threshold: float = 0.08,
+        minority_bonus: float = 0.12,
+        weights: CandidateWeights | None = None,
+    ) -> None:
         self.reputation = reputation or ExpertReputationManager()
         self.max_rounds = max_rounds
         self.disagreement_threshold = disagreement_threshold
@@ -83,16 +100,40 @@ class DelphiProtocol:
         for members in groups.values():
             representative = max(members, key=lambda item: self.score(item, len(members), len(proposals)))
             candidates.append(representative)
-        candidates.sort(key=lambda item: self.score(item, sum(p.normalized_key() == item.normalized_key() for p in proposals), len(proposals)), reverse=True)
+        candidates.sort(
+            key=lambda item: self.score(item, sum(p.normalized_key() == item.normalized_key() for p in proposals), len(proposals)),
+            reverse=True,
+        )
         disagreement = self.disagreement(proposals)
-        tracer.record("anonymous_aggregation", round=round_number, proposal_count=len(proposals), candidate_count=len(candidates), disagreement=disagreement, proposal_diversity=self.diversity(proposals), candidates=[p.to_dict() for p in candidates])
+        tracer.record(
+            "anonymous_aggregation",
+            round=round_number,
+            proposal_count=len(proposals),
+            candidate_count=len(candidates),
+            disagreement=disagreement,
+            proposal_diversity=self.diversity(proposals),
+            candidates=[p.to_dict() for p in candidates],
+        )
         return candidates
 
     def score(self, proposal: Proposal, support: int, total: int) -> float:
         consensus = support / max(1, total)
-        minority = self.minority_bonus if support / max(1, total) < 0.4 and proposal.expected_speedup >= 1.2 and proposal.correctness_risk < 0.35 else 0.0
+        minority = (
+            self.minority_bonus
+            if support / max(1, total) < 0.4 and proposal.expected_speedup >= 1.2 and proposal.correctness_risk < 0.35
+            else 0.0
+        )
         weights = self.weights
-        return weights.consensus * consensus + weights.expected_gain * min(2.0, proposal.expected_speedup) / 2 + weights.confidence * proposal.confidence + weights.novelty * proposal.novelty + weights.reputation * self.reputation.weight(proposal.source_expert, proposal.category) + minority - weights.implementation_cost * proposal.implementation_cost - weights.correctness_risk * proposal.correctness_risk
+        return (
+            weights.consensus * consensus
+            + weights.expected_gain * min(2.0, proposal.expected_speedup) / 2
+            + weights.confidence * proposal.confidence
+            + weights.novelty * proposal.novelty
+            + weights.reputation * self.reputation.weight(proposal.source_expert, proposal.category)
+            + minority
+            - weights.implementation_cost * proposal.implementation_cost
+            - weights.correctness_risk * proposal.correctness_risk
+        )
 
     @staticmethod
     def disagreement(proposals: list[Proposal]) -> float:
@@ -109,6 +150,8 @@ class DelphiProtocol:
     def feedback(self, candidates: list[Proposal], evidence: str) -> str:
         lines = ["Anonymous proposal feedback; do not infer author identity:"]
         for index, candidate in enumerate(candidates, 1):
-            lines.append(f"Candidate {index}: transformation={candidate.transformation}; expected={candidate.expected_speedup:.2f}; confidence={candidate.confidence:.2f}")
+            lines.append(
+                f"Candidate {index}: transformation={candidate.transformation}; expected={candidate.expected_speedup:.2f}; confidence={candidate.confidence:.2f}"
+            )
         lines.append(f"Observed evidence: {evidence}")
         return "\n".join(lines)
