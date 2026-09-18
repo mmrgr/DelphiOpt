@@ -65,6 +65,8 @@ delphiopt optimize examples/demo_project --only-analyze
 
 # verify a candidate while leaving source files unchanged
 delphiopt optimize examples/demo_project --dry-run --max-files 2 --budget-usd 0.50
+# ask before writing a verified patch
+delphiopt optimize examples/demo_project --confirm
 ```
 
 The demo contains an intentionally slow list-membership hot loop. DelphiOpt runs baseline tests and benchmarks, elicits five expert proposals, ranks candidates, applies a set-membership patch in a temporary copy, reruns correctness and repeated performance tests, and copies the patch back only after the evidence gate passes.
@@ -77,10 +79,12 @@ delphiopt inspect RUN_ID
 delphiopt report RUN_ID
 delphiopt reproduce RUN_ID
 delphiopt models
+delphiopt models --check
+delphiopt resume RUN_ID
 delphiopt experts
 ```
 
-`RUN_ID` is printed in the optimization JSON and traces live under `examples/demo_project/.delphiopt/runs/`.
+`RUN_ID` is printed in the optimization JSON and traces live under `examples/demo_project/.delphiopt/runs/`. Every run also writes an atomic `RUN_ID.checkpoint.json`; if a process is interrupted, continue it with `delphiopt resume RUN_ID` (or pass `--project` and `--runs-root` when running from elsewhere). `models --check` concurrently probes configured endpoints and reports configuration, reachability, and structured-response support.
 
 ## Configuration
 
@@ -104,7 +108,7 @@ benchmark: {warmups: 2, repetitions: 5, timeout_seconds: 120}
 sandbox: {type: local, network: false, cpu_limit: 2, memory_mb: 2048}
 ```
 
-Configuration precedence is defaults → project `delphiopt.yaml` → explicit `--config` → CLI flags. Merge operations deep-copy state, validate positive budgets, reject unknown models, and preserve project test/benchmark commands. Use `--budget-usd`, `--max-rounds`, `--mode single|debate|delphi`, `--dry-run`, `--only-analyze`, and `--max-files` for final overrides. Real providers use `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GEMINI_API_KEY`; see `configs/real-providers.yaml.example`. Providers account for reported token usage and retry transient HTTP failures with exponential backoff.
+Configuration precedence is defaults → project `delphiopt.yaml` → explicit `--config` → CLI flags. Merge operations deep-copy state, validate positive budgets, reject unknown models, and preserve project test/benchmark commands. Use `--budget-usd`, `--max-rounds`, `--mode single|debate|delphi`, `--dry-run`, `--confirm`, `--only-analyze`, and `--max-files` for final overrides. Real providers use `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GEMINI_API_KEY`; see `configs/real-providers.yaml.example`. Providers account for reported token usage, retry transient HTTP failures with exponential backoff, and can be checked with `models --check` before an optimization run.
 
 ## Protocol and scheduling
 

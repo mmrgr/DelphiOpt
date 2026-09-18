@@ -14,6 +14,12 @@ def test_cli_lists_builtin_modes(capsys) -> None:
     assert "algorithm" in capsys.readouterr().out
 
 
+def test_cli_checks_model_capabilities(capsys) -> None:
+    assert main(["models", "--check"]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert any(values["reachable"] is True for values in result.values())
+
+
 def test_cli_analysis_only_does_not_call_models(tmp_path: Path, capsys) -> None:
     (tmp_path / "target.py").write_text(
         "def f(values):\n    for value in values:\n        if value in values: return value\n", encoding="utf-8"
@@ -52,3 +58,28 @@ def test_cli_optimize_inspect_report_and_benchmark(tmp_path: Path, capsys) -> No
     capsys.readouterr()
     assert main(["benchmark", str(project)]) == 0
     assert '"correctness": true' in capsys.readouterr().out.lower()
+
+
+def test_cli_resume_uses_checkpoint_metadata(tmp_path: Path, capsys) -> None:
+    project = tmp_path / "resume-project"
+    project.mkdir()
+    (project / "target.py").write_text("def identity(value):\n    return value\n", encoding="utf-8")
+    (project / "tests.py").write_text("from target import identity\nassert identity(3) == 3\n", encoding="utf-8")
+    (project / "benchmark.py").write_text("import json\nprint(json.dumps({'runtime_ms': 1.0}))\n", encoding="utf-8")
+    (project / "delphiopt.yaml").write_text(
+        "project:\n  test_command: python tests.py\n  benchmark_command: python benchmark.py\n"
+        "benchmark:\n  warmups: 0\n  repetitions: 1\n"
+        "delphi:\n  max_rounds: 1\n  meaningful_speedup: 100.0\n",
+        encoding="utf-8",
+    )
+    assert main(["optimize", str(project)]) == 0
+    first = json.loads(capsys.readouterr().out)
+    runs = project / ".delphiopt" / "runs"
+    run_config = runs / f"{first['run_id']}.run_config.yaml"
+    config = json.loads(run_config.read_text(encoding="utf-8"))
+    config["delphi"]["max_rounds"] = 2
+    run_config.write_text(json.dumps(config), encoding="utf-8")
+    assert main(["resume", first["run_id"], "--runs-root", str(runs)]) == 0
+    resumed = json.loads(capsys.readouterr().out)
+    assert resumed["run_id"] == first["run_id"]
+    assert resumed["rounds"] == 2

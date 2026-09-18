@@ -17,6 +17,8 @@ class ModelProvider(Protocol):
 
     async def generate(self, prompt: str, *, model: str, max_tokens: int, temperature: float = 0.2) -> AgentResponse: ...
 
+    async def probe(self, model: str) -> dict[str, object]: ...
+
 
 def _tokens(text: str) -> int:
     return max(1, len(text.split()))
@@ -24,6 +26,17 @@ def _tokens(text: str) -> int:
 
 class MockModelProvider:
     name = "mock"
+
+    async def probe(self, model: str) -> dict[str, object]:
+        await asyncio.sleep(0)
+        return {
+            "provider": self.name,
+            "model": model,
+            "configured": True,
+            "reachable": True,
+            "structured_json": True,
+            "reason": "mock provider is available",
+        }
 
     async def generate(self, prompt: str, *, model: str, max_tokens: int, temperature: float = 0.2) -> AgentResponse:
         started = time.perf_counter()
@@ -97,6 +110,34 @@ class HttpModelProvider:
 
     async def generate(self, prompt: str, *, model: str, max_tokens: int, temperature: float = 0.2) -> AgentResponse:
         return await asyncio.to_thread(self._generate_sync, prompt, model, max_tokens, temperature)
+
+    async def probe(self, model: str) -> dict[str, object]:
+        configured = bool(os.getenv(self.api_key_env))
+        result: dict[str, object] = {
+            "provider": self.name,
+            "model": model,
+            "endpoint": self.endpoint,
+            "configured": configured,
+            "reachable": False,
+            "structured_json": False,
+        }
+        if not configured:
+            result["reason"] = f"missing environment variable {self.api_key_env}"
+            return result
+        try:
+            response = await self.generate('Return only this JSON object: {"ok":true}', model=model, max_tokens=32, temperature=0)
+            text = response.text.strip()
+            start, end = text.find("{"), text.rfind("}")
+            parsed = json.loads(text[start : end + 1]) if start >= 0 and end > start else None
+            result.update(
+                reachable=True,
+                structured_json=isinstance(parsed, dict),
+                latency_seconds=response.latency_seconds,
+                reason="provider request succeeded",
+            )
+        except (RuntimeError, ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
+            result["reason"] = str(exc)
+        return result
 
     def _generate_sync(self, prompt: str, model: str, max_tokens: int, temperature: float) -> AgentResponse:
         key = os.getenv(self.api_key_env)
@@ -223,3 +264,27 @@ def provider_from_config(config: dict[str, Any]) -> ModelProvider:
             float(config.get("backoff_seconds", 0.5)),
         )
     raise ValueError(f"unknown provider: {provider}")
+
+
+async def probe_model_configs(configs: dict[str, Any], *, max_concurrency: int = 4) -> dict[str, dict[str, object]]:
+    """Probe configured models concurrently while bounding outbound requests."""
+
+    semaphore = asyncio.Semaphore(max(1, max_concurrency))
+
+    async def probe_one(alias: str, values: dict[str, Any]) -> tuple[str, dict[str, object]]:
+        async with semaphore:
+            try:
+                provider = provider_from_config(values)
+                return alias, await provider.probe(str(values.get("model", alias)))
+            except (RuntimeError, ValueError, TypeError, KeyError) as exc:
+                return alias, {
+                    "provider": str(values.get("provider", "unknown")),
+                    "model": str(values.get("model", alias)),
+                    "configured": False,
+                    "reachable": False,
+                    "structured_json": False,
+                    "reason": str(exc),
+                }
+
+    pairs = await asyncio.gather(*(probe_one(str(alias), dict(values)) for alias, values in configs.items() if isinstance(values, dict)))
+    return dict(pairs)

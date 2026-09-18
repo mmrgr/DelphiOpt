@@ -3,8 +3,7 @@
 ## Next
 
 - Add dynamic memory allocation and lock-contention sampling for long-running workloads.
-- Add checkpoint resume for interrupted optimization runs.
-- Add provider capability probes and concurrent expert calls with bounded fan-out.
+- Add concurrent expert inference in the optimization round loop with bounded fan-out.
 
 ## Later
 

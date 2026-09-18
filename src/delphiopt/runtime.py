@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import tempfile
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -28,7 +29,15 @@ class OptimizationRuntime:
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         self.config = merge_config({}, config) if config is not None else None
 
-    def optimize(self, project: str | Path, *, write_changes: bool = True, max_modified_files: int | None = None) -> RunSummary:
+    def optimize(
+        self,
+        project: str | Path,
+        *,
+        write_changes: bool = True,
+        max_modified_files: int | None = None,
+        resume_run: str | None = None,
+        confirm: Callable[[Proposal, str, float], bool] | None = None,
+    ) -> RunSummary:
         project_path = Path(project).resolve()
         if not project_path.is_dir():
             raise FileNotFoundError(f"project directory does not exist: {project_path}")
@@ -36,9 +45,14 @@ class OptimizationRuntime:
         if self.config is None:
             self.config = load_config(config_path if config_path.exists() else None)
         validate_config(self.config)
-        run_id = uuid.uuid4().hex[:12]
-        trace = RunTracer(project_path / ".delphiopt" / "runs", run_id)
-        (project_path / ".delphiopt" / "runs" / f"{run_id}.run_config.yaml").write_text(json.dumps(self.config, indent=2), encoding="utf-8")
+        run_id = resume_run or uuid.uuid4().hex[:12]
+        runs_dir = project_path / ".delphiopt" / "runs"
+        checkpoint_path = runs_dir / f"{run_id}.checkpoint.json"
+        checkpoint = self._load_checkpoint(checkpoint_path) if resume_run else {}
+        trace = RunTracer(runs_dir, run_id)
+        if resume_run:
+            trace.record("run_resumed", checkpoint=str(checkpoint_path), next_round=int(checkpoint.get("next_round", 1)))
+        (runs_dir / f"{run_id}.run_config.yaml").write_text(json.dumps(self.config, indent=2), encoding="utf-8")
         limits = BudgetLimits(
             **{key: value for key, value in self.config.get("budget", {}).items() if key in BudgetLimits.__dataclass_fields__}
         )
@@ -167,7 +181,42 @@ class OptimizationRuntime:
         completed: set[str] = set()
         evidence_log: list[str] = []
         model_stats: dict[str, dict[str, float]] = {}
-        for round_number in range(1, protocol.max_rounds + 1):
+        start_round = 1
+        if checkpoint:
+            start_round = max(1, int(checkpoint.get("next_round", 1)))
+            best_ms = float(checkpoint.get("best_ms", best_ms))
+            winning = str(checkpoint.get("winning", winning))
+            candidates_evaluated = int(checkpoint.get("candidates_evaluated", candidates_evaluated))
+            proposal_diversity = float(checkpoint.get("proposal_diversity", proposal_diversity))
+            round_disagreements = [float(item) for item in checkpoint.get("round_disagreements", [])]
+            models_used = {str(key): int(value) for key, value in checkpoint.get("models_used", {}).items()}
+            last_proposals = [Proposal.from_dict(item) for item in checkpoint.get("last_proposals", [])]
+            previous_ranking = tuple(str(item) for item in checkpoint.get("previous_ranking", []))
+            stagnant_rounds = int(checkpoint.get("stagnant_rounds", 0))
+            evidence_log = [str(item) for item in checkpoint.get("evidence_log", [])]
+            model_stats = {
+                str(key): {str(metric): float(value) for metric, value in values.items()}
+                for key, values in checkpoint.get("model_stats", {}).items()
+            }
+        self._write_checkpoint(
+            checkpoint_path,
+            run_id=run_id,
+            project=project_path,
+            status="running",
+            next_round=start_round,
+            best_ms=best_ms,
+            winning=winning,
+            candidates_evaluated=candidates_evaluated,
+            proposal_diversity=proposal_diversity,
+            round_disagreements=round_disagreements,
+            models_used=models_used,
+            last_proposals=last_proposals,
+            previous_ranking=previous_ranking,
+            stagnant_rounds=stagnant_rounds,
+            evidence_log=evidence_log,
+            model_stats=model_stats,
+        )
+        for round_number in range(start_round, protocol.max_rounds + 1):
             proposals: list[Proposal] = []
             observed_evidence = "\n".join(evidence_log[-12:]) or f"baseline median={baseline.median_ms:.3f} ms"
             feedback = protocol.feedback(last_proposals, observed_evidence) if round_number > 1 and last_proposals else ""
@@ -345,12 +394,15 @@ class OptimizationRuntime:
                         and conservative_speedup >= meaningful_speedup
                         and coefficient_of_variation <= max_cv
                     ):
-                        if write_changes:
+                        apply_changes = write_changes and (confirm is None or confirm(candidate, patch.diff, speedup))
+                        if apply_changes:
                             implementer.sync_accepted_files(candidate_project, project_path, patch.files)
                         best_ms, winning = result.median_ms, candidate.id
-                        status = "accepted" if write_changes else "accepted_dry_run"
+                        status = "accepted" if apply_changes else "accepted_dry_run"
                         stop_reason = (
-                            "verified improvement accepted" if write_changes else "verified improvement; dry-run left source unchanged"
+                            "verified improvement accepted"
+                            if apply_changes
+                            else "verified improvement; source unchanged by dry-run or user confirmation"
                         )
                         trace.record(
                             "candidate_decision",
@@ -378,6 +430,24 @@ class OptimizationRuntime:
                         self._attach_experiment_metrics(summary, reputation, round_disagreements, models_used)
                         trace.record("reputation_update", values=reputation.snapshot())
                         reputation.save(reputation_path)
+                        self._write_checkpoint(
+                            checkpoint_path,
+                            run_id=run_id,
+                            project=project_path,
+                            status=status,
+                            next_round=round_number + 1,
+                            best_ms=best_ms,
+                            winning=winning,
+                            candidates_evaluated=candidates_evaluated,
+                            proposal_diversity=proposal_diversity,
+                            round_disagreements=round_disagreements,
+                            models_used=models_used,
+                            last_proposals=last_proposals,
+                            previous_ranking=previous_ranking,
+                            stagnant_rounds=stagnant_rounds,
+                            evidence_log=evidence_log,
+                            model_stats=model_stats,
+                        )
                         return self._finish(trace, project_path, summary, budget)
                     trace.record(
                         "candidate_decision",
@@ -398,10 +468,28 @@ class OptimizationRuntime:
                 stagnant_rounds=stagnant_rounds,
                 remaining_budget_ratio=budget.remaining_ratio(),
             )
+            previous_ranking = ranking
+            self._write_checkpoint(
+                checkpoint_path,
+                run_id=run_id,
+                project=project_path,
+                status="stopped" if should_stop else "running",
+                next_round=round_number + 1,
+                best_ms=best_ms,
+                winning=winning,
+                candidates_evaluated=candidates_evaluated,
+                proposal_diversity=proposal_diversity,
+                round_disagreements=round_disagreements,
+                models_used=models_used,
+                last_proposals=last_proposals,
+                previous_ranking=previous_ranking,
+                stagnant_rounds=stagnant_rounds,
+                evidence_log=evidence_log,
+                model_stats=model_stats,
+            )
             if should_stop:
                 stop_reason = policy_reason
                 break
-            previous_ranking = ranking
         summary = RunSummary(
             run_id,
             str(project_path),
@@ -410,7 +498,7 @@ class OptimizationRuntime:
             best_ms,
             baseline.median_ms / best_ms if best_ms else 1.0,
             True,
-            len(protocol.rounds),
+            len(round_disagreements),
             candidates_evaluated,
             winning,
             stop_reason,
@@ -420,7 +508,77 @@ class OptimizationRuntime:
         )
         self._attach_experiment_metrics(summary, reputation, round_disagreements, models_used)
         reputation.save(reputation_path)
+        self._write_checkpoint(
+            checkpoint_path,
+            run_id=run_id,
+            project=project_path,
+            status="rejected",
+            next_round=max(start_round, protocol.max_rounds + 1),
+            best_ms=best_ms,
+            winning=winning,
+            candidates_evaluated=candidates_evaluated,
+            proposal_diversity=proposal_diversity,
+            round_disagreements=round_disagreements,
+            models_used=models_used,
+            last_proposals=last_proposals,
+            previous_ranking=previous_ranking,
+            stagnant_rounds=stagnant_rounds,
+            evidence_log=evidence_log,
+            model_stats=model_stats,
+        )
         return self._finish(trace, project_path, summary, budget)
+
+    @staticmethod
+    def _load_checkpoint(path: Path) -> dict[str, Any]:
+        if not path.exists():
+            raise FileNotFoundError(f"checkpoint does not exist: {path}")
+        value = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(value, dict):
+            raise TypeError(f"invalid checkpoint: {path}")
+        return value
+
+    @staticmethod
+    def _write_checkpoint(
+        path: Path,
+        *,
+        run_id: str,
+        project: Path,
+        status: str,
+        next_round: int,
+        best_ms: float,
+        winning: str,
+        candidates_evaluated: int,
+        proposal_diversity: float,
+        round_disagreements: list[float],
+        models_used: dict[str, int],
+        last_proposals: list[Proposal],
+        previous_ranking: tuple[str, ...],
+        stagnant_rounds: int,
+        evidence_log: list[str],
+        model_stats: dict[str, dict[str, float]],
+    ) -> None:
+        payload = {
+            "version": 1,
+            "run_id": run_id,
+            "project": str(project),
+            "status": status,
+            "next_round": next_round,
+            "best_ms": best_ms,
+            "winning": winning,
+            "candidates_evaluated": candidates_evaluated,
+            "proposal_diversity": proposal_diversity,
+            "round_disagreements": round_disagreements,
+            "models_used": models_used,
+            "last_proposals": [proposal.to_dict() for proposal in last_proposals],
+            "previous_ranking": list(previous_ranking),
+            "stagnant_rounds": stagnant_rounds,
+            "evidence_log": evidence_log,
+            "model_stats": model_stats,
+        }
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_suffix(".tmp")
+        temporary.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        temporary.replace(path)
 
     def _finish(self, trace: RunTracer, project: Path, summary: RunSummary, budget: BudgetManager) -> RunSummary:
         summary.cost_usd = budget.usage.cost_usd

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import sys
 from pathlib import Path
@@ -11,6 +12,7 @@ from .budget import BudgetManager
 from .config import load_config, load_config_overrides, merge_config, validate_config
 from .optimizer import CorrectnessGate
 from .profiler import DynamicProfiler, StaticProfiler
+from .providers import probe_model_configs
 from .reporting import render_run_report
 from .runtime import OptimizationRuntime
 from .sandbox import sandbox_from_config
@@ -27,6 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
     optimize.add_argument("--max-rounds", type=int)
     optimize.add_argument("--mode", choices=("single", "debate", "delphi"))
     optimize.add_argument("--dry-run", action="store_true", help="verify a candidate without writing source files")
+    optimize.add_argument("--confirm", action="store_true", help="ask before applying a verified candidate")
     optimize.add_argument("--only-analyze", action="store_true", help="profile the project without calling models")
     optimize.add_argument("--max-files", type=int, help="maximum number of files an accepted patch may change")
     benchmark = sub.add_parser("benchmark", help="run a project benchmark")
@@ -36,9 +39,15 @@ def build_parser() -> argparse.ArgumentParser:
         item = sub.add_parser(name)
         item.add_argument("run_id")
         item.add_argument("--runs-root", default=None)
+    resume = sub.add_parser("resume", help="continue an interrupted optimization run")
+    resume.add_argument("run_id")
+    resume.add_argument("--project")
+    resume.add_argument("--runs-root", default=None)
     for name in ("models", "experts"):
         item = sub.add_parser(name)
         item.add_argument("--config")
+        if name == "models":
+            item.add_argument("--check", action="store_true", help="test configured model endpoints")
     return parser
 
 
@@ -46,6 +55,9 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "models":
         config = load_config(args.config) if args.config else load_config()
+        if args.check:
+            print(json.dumps(asyncio.run(probe_model_configs(config["models"])), indent=2))
+            return 0
         for name, values in config["models"].items():
             print(f"{name}\t{values.get('model', name)}\t{values.get('provider', 'mock')}")
         return 0
@@ -72,9 +84,28 @@ def main(argv: list[str] | None = None) -> int:
         if args.mode is not None:
             config["collaboration"]["mode"] = args.mode
         validate_config(config)
-        optimize_summary = OptimizationRuntime(config).optimize(project, write_changes=not args.dry_run, max_modified_files=args.max_files)
+        confirm = _confirm_candidate if args.confirm and not args.dry_run else None
+        optimize_summary = OptimizationRuntime(config).optimize(
+            project, write_changes=not args.dry_run, max_modified_files=args.max_files, confirm=confirm
+        )
         print(json.dumps(optimize_summary.to_dict(), indent=2))
         return 0 if optimize_summary.status in {"accepted", "accepted_dry_run", "rejected"} else 1
+    if args.command == "resume":
+        root = Path(args.runs_root) if args.runs_root else _find_run_root(Path.cwd(), args.run_id)
+        checkpoint_path = root / f"{args.run_id}.checkpoint.json"
+        if not checkpoint_path.exists():
+            print(f"checkpoint does not exist: {checkpoint_path}", file=sys.stderr)
+            return 1
+        checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+        project_value = args.project or checkpoint.get("project")
+        if not project_value:
+            print("checkpoint has no project metadata", file=sys.stderr)
+            return 1
+        run_config = root / f"{args.run_id}.run_config.yaml"
+        resume_config = load_config(run_config) if run_config.exists() else _effective_config(Path(project_value), None)
+        summary = OptimizationRuntime(resume_config).optimize(project_value, resume_run=args.run_id)
+        print(json.dumps(summary.to_dict(), indent=2))
+        return 0 if summary.status in {"accepted", "accepted_dry_run", "rejected"} else 1
     if args.command == "benchmark":
         project = Path(args.project).resolve()
         config = _effective_config(project, args.config)
@@ -137,9 +168,9 @@ def main(argv: list[str] | None = None) -> int:
 
 def _find_run_root(cwd: Path, run_id: str) -> Path:
     direct = cwd / ".delphiopt" / "runs"
-    if (direct / f"{run_id}.jsonl").exists():
+    if (direct / f"{run_id}.jsonl").exists() or (direct / f"{run_id}.checkpoint.json").exists():
         return direct
-    matches = list(cwd.rglob(f"{run_id}.jsonl"))
+    matches = list(cwd.rglob(f"{run_id}.jsonl")) or list(cwd.rglob(f"{run_id}.checkpoint.json"))
     if matches:
         return matches[0].parent
     return direct
@@ -161,6 +192,15 @@ def _detect_project_commands(project: Path) -> dict[str, str]:
         "test_command": "python tests.py" if project.joinpath("tests.py").exists() else "pytest -q",
         "benchmark_command": "python benchmark.py",
     }
+
+
+def _confirm_candidate(proposal: Any, diff: str, speedup: float) -> bool:
+    print(f"Verified candidate: {proposal.transformation}")
+    print(f"Measured speedup: {speedup:.3f}x")
+    print("Auditable diff:")
+    print(diff)
+    answer = input("Apply this candidate to the project? [y/N] ").strip().lower()
+    return answer in {"y", "yes"}
 
 
 if __name__ == "__main__":

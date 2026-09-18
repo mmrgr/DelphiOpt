@@ -14,7 +14,7 @@ from delphiopt.delphi import ConvergencePolicy, DelphiProtocol, StoppingPolicy
 from delphiopt.models import AgentResponse, BudgetLimits, Proposal
 from delphiopt.optimizer import CorrectnessGate, ImplementationAgent
 from delphiopt.profiler import DynamicProfiler, StaticProfiler
-from delphiopt.providers import HttpModelProvider, MockModelProvider, provider_from_config
+from delphiopt.providers import HttpModelProvider, MockModelProvider, probe_model_configs, provider_from_config
 from delphiopt.reputation import ExpertReputationManager
 from delphiopt.sandbox import DockerSandbox, LocalSandbox, sandbox_from_config
 from delphiopt.scheduler import SchedulerState, make_scheduler
@@ -152,6 +152,28 @@ def test_http_provider_requires_key(monkeypatch) -> None:
         assert "MISSING_PROVIDER_KEY" in str(exc)
     else:
         raise AssertionError("missing provider key must fail")
+
+
+def test_provider_capability_probe_is_structured(monkeypatch) -> None:
+    monkeypatch.delenv("MISSING_PROVIDER_KEY", raising=False)
+    results = asyncio.run(
+        probe_model_configs(
+            {
+                "local": {"provider": "mock", "model": "mock-model"},
+                "remote": {
+                    "provider": "openai-compatible",
+                    "model": "remote-model",
+                    "endpoint": "https://example.invalid/v1/chat/completions",
+                    "api_key_env": "MISSING_PROVIDER_KEY",
+                },
+            },
+            max_concurrency=2,
+        )
+    )
+    assert results["local"]["reachable"] is True
+    assert results["local"]["structured_json"] is True
+    assert results["remote"]["reachable"] is False
+    assert "MISSING_PROVIDER_KEY" in str(results["remote"]["reason"])
 
 
 def test_http_provider_retries_transient_failures(monkeypatch) -> None:
