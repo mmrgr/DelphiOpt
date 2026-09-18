@@ -12,10 +12,11 @@
 
 ## Verification
 
-- `44 passed`
+- `47 passed`
 - Ruff and Python compilation passed.
 - Desktop source and packaged EXE smoke tests passed.
 - Custom local OpenAI-compatible endpoint test passed.
 - GitHub Actions matrix passed on Ubuntu, Windows, and macOS with Python 3.11 and 3.12.
 - Resumable checkpoints, `delphiopt resume`, provider capability checks, bounded concurrent probes, and interactive patch confirmation are included.
-- EXE SHA256: `600F3AC14C699EF416FB58DB5C9F705186B0FA73EBA23DE602E67B69934E4DE3`
+- The benchmark suite now contains 30 near-real tasks and a budget-matched runner for single, best-of-N, debate, fixed, difficulty, and adaptive Delphi conditions.
+- EXE SHA256: `35B20970A1E32B5E2B6C27EC8B0B3B10C489A1B59E0B2A6EC3742577DF0920C7`
