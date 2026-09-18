@@ -56,7 +56,13 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "benchmark_command": "python benchmark.py",
         "timeout_seconds": 120,
     },
-    "project": {"test_command": "pytest -q", "benchmark_command": "python benchmark.py", "max_modified_files": 3},
+    "project": {
+        "test_command": "pytest -q",
+        "benchmark_command": "python benchmark.py",
+        "lint_command": None,
+        "type_command": None,
+        "max_modified_files": 3,
+    },
     "sandbox": {"type": "local", "network": False, "cpu_limit": 2, "memory_mb": 2048, "image": "python:3.12-slim"},
 }
 

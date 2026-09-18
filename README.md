@@ -129,7 +129,7 @@ The scheduler records the score and reason for every call. A global `BudgetManag
 3. Elicit independent expert proposals and validate JSON schema fields.
 4. Aggregate anonymously and preserve minority candidates.
 5. Apply a validated LLM-provided unified diff—or the deterministic demo transformation—in a fresh workspace and persist the candidate diff.
-6. Run compile, optional lint, and configured tests; failed correctness prevents benchmark execution.
+6. Run compile, optional lint, optional type check, and configured tests; failed correctness prevents benchmark execution.
 7. Run warmups, randomly interleaved baseline/candidate samples, MAD outlier filtering, bootstrap confidence intervals, optional CPU affinity, and environment capture; require median speedup, conservative confidence-interval speedup, and coefficient-of-variation stability.
 8. Record actual correctness, speedup, variance, errors, cost, latency, and raw samples, then feed that evidence into the next Delphi round.
 9. Accept only when correctness passes and configured meaningful speedup plus stability pass; otherwise reject and retain evidence in the trace.

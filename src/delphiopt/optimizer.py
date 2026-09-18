@@ -157,12 +157,15 @@ class CorrectnessGate:
         timeout_seconds: float = 120,
         *,
         lint_command: str | None = None,
+        type_command: str | None = None,
         budget: BudgetManager | None = None,
     ) -> GateResult:
         stages: list[CommandResult] = []
         commands = [("compile", "python -m compileall -q .")]
         if lint_command:
             commands.append(("lint", lint_command))
+        if type_command:
+            commands.append(("type", type_command))
         commands.append(("tests", test_command))
         for name, command in commands:
             if budget:

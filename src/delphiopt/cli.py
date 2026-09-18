@@ -86,6 +86,7 @@ def main(argv: list[str] | None = None) -> int:
             str(cfg.get("test_command", "pytest -q")),
             float(config.get("benchmark", {}).get("timeout_seconds", 120)),
             lint_command=str(cfg["lint_command"]) if cfg.get("lint_command") else None,
+            type_command=str(cfg["type_command"]) if cfg.get("type_command") else None,
             budget=budget,
         )
         result = BenchmarkEngine(

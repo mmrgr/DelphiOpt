@@ -99,11 +99,11 @@ class DynamicProfiler:
         categories = {"cpu": 0, "memory": 0, "io": 0, "locks": 0}
         for hotspot in hotspots:
             lowered = hotspot.lower()
-            if any(token in lowered for token in ("read", "write", "open", "socket", "pathlib")):
+            if any(re.search(rf"\b{token}\b", lowered) for token in ("read", "write", "open", "socket", "pathlib")):
                 categories["io"] += 1
-            elif any(token in lowered for token in ("lock", "acquire", "thread", "semaphore")):
+            elif any(re.search(rf"\b{token}\b", lowered) for token in ("lock", "acquire", "thread", "semaphore")):
                 categories["locks"] += 1
-            elif any(token in lowered for token in ("alloc", "copy", "list", "dict", "set")):
+            elif any(re.search(rf"\b{token}\b", lowered) for token in ("alloc", "copy", "list", "dict", "set")):
                 categories["memory"] += 1
             else:
                 categories["cpu"] += 1

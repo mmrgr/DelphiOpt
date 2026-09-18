@@ -48,6 +48,7 @@ class OptimizationRuntime:
         project_cfg = self.config.get("project", {})
         test_command = str(project_cfg.get("test_command", benchmark_cfg.get("test_command", "pytest -q")))
         lint_command = str(project_cfg["lint_command"]) if project_cfg.get("lint_command") else None
+        type_command = str(project_cfg["type_command"]) if project_cfg.get("type_command") else None
         benchmark_command = str(project_cfg.get("benchmark_command", benchmark_cfg.get("benchmark_command", "python benchmark.py")))
         timeout = float(benchmark_cfg.get("timeout_seconds", 120))
         engine = BenchmarkEngine(
@@ -69,7 +70,9 @@ class OptimizationRuntime:
         )
         context = StaticProfiler().context(project_path)
         trace.record("static_analysis", context=context)
-        baseline_gate = CorrectnessGate(sandbox).run(project_path, test_command, timeout, lint_command=lint_command, budget=budget)
+        baseline_gate = CorrectnessGate(sandbox).run(
+            project_path, test_command, timeout, lint_command=lint_command, type_command=type_command, budget=budget
+        )
         trace.record(
             "correctness",
             stage="baseline",
@@ -286,7 +289,9 @@ class OptimizationRuntime:
                         evidence_log.append(f"candidate={candidate.id} patch=rejected reason={reason}")
                         reputation.update(candidate, correctness=False, actual_speedup=1.0)
                         continue
-                    gate = CorrectnessGate(sandbox).run(candidate_project, test_command, timeout, lint_command=lint_command, budget=budget)
+                    gate = CorrectnessGate(
+                        sandbox,
+                    ).run(candidate_project, test_command, timeout, lint_command=lint_command, type_command=type_command, budget=budget)
                     trace.record(
                         "correctness",
                         stage="candidate",

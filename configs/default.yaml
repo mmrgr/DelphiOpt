@@ -68,6 +68,10 @@ benchmark:
   timeout_seconds: 120
 
 project:
+  test_command: pytest -q
+  benchmark_command: python benchmark.py
+  lint_command:
+  type_command:
   max_modified_files: 3
 
 sandbox:
