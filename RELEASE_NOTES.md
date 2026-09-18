@@ -18,6 +18,8 @@
 - Custom local OpenAI-compatible endpoint test passed.
 - GitHub Actions matrix passed on Ubuntu, Windows, and macOS with Python 3.11 and 3.12.
 - Resumable checkpoints, `delphiopt resume`, provider capability checks, bounded concurrent probes, and interactive patch confirmation are included.
+- Best-of-N runs issue independent expert requests through a bounded concurrent batch (`scheduler.max_parallel`, default 4).
 - The benchmark suite now contains 30 near-real tasks and a budget-matched runner for single, best-of-N, debate, fixed, difficulty, and adaptive Delphi conditions.
 - Dynamic profiling now records peak `tracemalloc` memory alongside cProfile hotspot evidence.
-- EXE SHA256: `D8A830AE6B7992D35B8F3CEAA38098889101F38EC125A8B4363D68B4A422D016`
+- `48 passed`; concurrency-limit coverage and current EXE smoke tests passed.
+- EXE SHA256: `E15FC522D6A55777D71790822AC22C77E31619C7F0075317612B8FEC454420EF`
