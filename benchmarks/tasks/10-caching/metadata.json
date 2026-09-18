@@ -1,0 +1,15 @@
+{
+  "id": "10-caching",
+  "category": "caching",
+  "title": "repeated recursive subproblems",
+  "known_optimization_opportunity": "memoize fibonacci subproblems",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

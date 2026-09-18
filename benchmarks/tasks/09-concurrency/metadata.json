@@ -1,0 +1,15 @@
+{
+  "id": "09-concurrency",
+  "category": "concurrency",
+  "title": "lock acquisition in every iteration",
+  "known_optimization_opportunity": "aggregate locally and acquire the lock once",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "02-loops",
+  "category": "loops",
+  "title": "loop-invariant recomputation",
+  "known_optimization_opportunity": "hoist max(values) outside the comprehension",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

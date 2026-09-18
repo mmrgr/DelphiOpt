@@ -1,0 +1,15 @@
+{
+  "id": "08-serialization",
+  "category": "serialization",
+  "title": "record-by-record JSON encoding",
+  "known_optimization_opportunity": "batch serialization and avoid repeated encoder setup",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

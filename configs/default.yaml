@@ -1,0 +1,73 @@
+models:
+  cheap:
+    provider: mock
+    model: mock-cheap
+  strong:
+    provider: mock
+    model: mock-strong
+
+# The desktop UI can reorder this list and enable priority-based fallback.
+model_priority: [cheap, strong]
+model_priority_enabled: false
+
+seed: 0
+
+experts:
+  algorithm:
+    persona: Algorithm Expert
+    model_pool: [cheap, strong]
+  compiler:
+    persona: Compiler Expert
+    model_pool: [cheap]
+  systems:
+    persona: Systems Expert
+    model_pool: [cheap]
+  memory:
+    persona: Memory Expert
+    model_pool: [cheap]
+  skeptic:
+    persona: Skeptic Agent
+    model_pool: [strong]
+
+scheduler:
+  strategy: adaptive_voi
+  base_tokens: 900
+  tool_budget: 2
+
+budget:
+  max_cost_usd: 1.0
+  max_tokens: 150000
+  max_latency_seconds: 900
+  max_llm_calls: 30
+  max_benchmark_runs: 20
+  max_tool_calls: 100
+
+delphi:
+  max_rounds: 3
+  disagreement_threshold: 0.08
+  meaningful_speedup: 1.05
+  max_coefficient_of_variation: 0.15
+  marginal_gain_threshold: 0.02
+  min_utility_per_usd: 0.1
+  no_improvement_rounds: 2
+  minority_bonus: 0.12
+  candidate_weights:
+    consensus: 0.25
+    expected_gain: 0.25
+    confidence: 0.20
+    novelty: 0.12
+    reputation: 0.10
+    implementation_cost: 0.05
+    correctness_risk: 0.03
+
+benchmark:
+  warmups: 2
+  repetitions: 5
+  timeout_seconds: 120
+
+sandbox:
+  type: local
+  network: false
+  cpu_limit: 2
+  memory_mb: 2048
+  image: python:3.12-slim

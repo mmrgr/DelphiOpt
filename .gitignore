@@ -1,0 +1,25 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+.tmp-test-runs/
+*.egg-info/
+.venv/
+.delphiopt/
+dist/
+build/
+
+# Generated verification captures and local acceptance runs.
+artifacts/acceptance-*/
+artifacts/desktop_app_home/
+artifacts/dist/
+artifacts/*.json
+artifacts/*.png
+!artifacts/desktop_exe_self_test_model_access.json
+!artifacts/desktop_ui_smoke_model_access.json
+!artifacts/ui_smoke_model_access.json
+!artifacts/optimize_layout_final.png
+!artifacts/model_access_layout_final.png

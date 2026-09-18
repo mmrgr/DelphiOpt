@@ -1,0 +1,15 @@
+{
+  "id": "03-data-structures",
+  "category": "data-structures",
+  "title": "quadratic ordered deduplication",
+  "known_optimization_opportunity": "track seen values in a set while preserving list order",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

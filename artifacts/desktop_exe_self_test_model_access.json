@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "demo": "C:\\Users\\mmrgr\\DelphiOpt\\demo_project",
+  "models": 2,
+  "experts": 5,
+  "commands": {
+    "models": 0,
+    "experts": 0
+  }
+}

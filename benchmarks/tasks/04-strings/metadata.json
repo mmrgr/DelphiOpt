@@ -1,0 +1,15 @@
+{
+  "id": "04-strings",
+  "category": "string-processing",
+  "title": "repeated immutable string concatenation",
+  "known_optimization_opportunity": "collect fragments and join once",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

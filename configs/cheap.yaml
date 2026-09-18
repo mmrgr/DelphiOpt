@@ -1,0 +1,9 @@
+models:
+  cheap:
+    provider: mock
+    model: mock-cheap
+scheduler:
+  strategy: fixed
+delphi:
+  max_rounds: 1
+

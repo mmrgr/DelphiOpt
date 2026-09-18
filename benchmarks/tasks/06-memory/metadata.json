@@ -1,0 +1,15 @@
+{
+  "id": "06-memory",
+  "category": "memory-allocation",
+  "title": "repeated list copying during flatten",
+  "known_optimization_opportunity": "extend one list instead of allocating on every chunk",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

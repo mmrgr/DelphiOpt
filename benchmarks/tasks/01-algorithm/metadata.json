@@ -1,0 +1,15 @@
+{
+  "id": "01-algorithm",
+  "category": "algorithm",
+  "title": "quadratic membership scan",
+  "known_optimization_opportunity": "convert the lookup collection to a set before the loop",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}

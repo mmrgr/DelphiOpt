@@ -1,0 +1,41 @@
+models:
+  openai_fast:
+    provider: openai
+    model: gpt-5-mini
+    api_key_env: OPENAI_API_KEY
+    endpoint: https://api.openai.com/v1/chat/completions
+    input_price_per_million: 0.0
+    output_price_per_million: 0.0
+  anthropic_strong:
+    provider: anthropic
+    model: claude-sonnet-4-5
+    api_key_env: ANTHROPIC_API_KEY
+    endpoint: https://api.anthropic.com/v1/messages
+    input_price_per_million: 0.0
+    output_price_per_million: 0.0
+  gemini_fast:
+    provider: gemini
+    model: gemini-2.5-flash
+    api_key_env: GEMINI_API_KEY
+    input_price_per_million: 0.0
+    output_price_per_million: 0.0
+
+experts:
+  algorithm:
+    persona: Algorithm Expert
+    model_pool: [anthropic_strong, openai_fast]
+  compiler:
+    persona: Compiler Expert
+    model_pool: [openai_fast]
+  systems:
+    persona: Systems Expert
+    model_pool: [gemini_fast]
+  memory:
+    persona: Memory Expert
+    model_pool: [openai_fast]
+  skeptic:
+    persona: Skeptic Agent
+    model_pool: [anthropic_strong]
+
+scheduler:
+  strategy: adaptive_voi

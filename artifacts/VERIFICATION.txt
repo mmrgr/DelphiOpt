@@ -1,0 +1,224 @@
+DelphiOpt artifact verification
+Changed branch/field: branch=baseline -> branch=verified; field=control
+Original SHA256 preserved after modification: 4B701EF3B96BC929FDEECE9411CCC879831710314898B75CB604F7A59EE63ABE
+Modified SHA256: 35B2AD1364CDACF5676BE332ADA5D95DE129F5D61EEC7A560E44443DBC0E51F8
+
+Artifacts:
+- MODIFIED_FILE: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\MODIFIED_FILE.txt
+- DIFF_FILE: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\DIFF_FILE.patch
+- VERIFICATION: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\VERIFICATION.txt
+- ROLLBACK: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ROLLBACK.sh
+
+BASELINE_COMMAND:
+python -c "from pathlib import Path; text=Path(r'artifacts/ORIGINAL_FILE.txt').read_text(); assert 'branch=baseline' in text and 'field=control' in text; print('baseline fixture: PASS')"
+BASELINE_INPUT: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ORIGINAL_FILE.txt
+BASELINE_LITERAL_OUTPUT:
+baseline fixture: PASS
+BASELINE_RESULT: exit status 0
+
+MODIFIED_COMMAND:
+python -c "from pathlib import Path; text=Path(r'artifacts/MODIFIED_FILE.txt').read_text(); assert 'branch=verified' in text and 'field=control' in text; print('modified fixture: PASS')"
+MODIFIED_INPUT: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\MODIFIED_FILE.txt
+MODIFIED_LITERAL_OUTPUT:
+modified fixture: PASS
+MODIFIED_RESULT: exit status 0
+MODIFIED_FILE_FINAL_STATE:
+branch=verified
+field=control
+
+DESKTOP_FRONTEND_FILES:
+MODIFIED_FILE=C:\Users\mmrgr\Documents\sjz\DelphiOpt\frontend\delphiopt_desktop.py
+DIFF_FILE=C:\Users\mmrgr\Documents\sjz\DelphiOpt\frontend\app_backend.py
+VERIFICATION=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\VERIFICATION.txt
+ROLLBACK=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ROLLBACK.sh
+
+DESKTOP_BASELINE_COMMAND:
+python frontend\delphiopt_desktop.py --self-test-output artifacts\desktop_source_self_test.json
+DESKTOP_BASELINE_LITERAL_OUTPUT: status=passed; models=2; experts=5; commands.models=0; commands.experts=0
+DESKTOP_BASELINE_RESULT: exit status 0
+
+DESKTOP_MODIFIED_COMMAND:
+python frontend\delphiopt_desktop.py --ui-smoke-output artifacts\desktop_ui_smoke_source.json
+DESKTOP_MODIFIED_LITERAL_OUTPUT: status=passed; title=DelphiOpt Adaptive Multi-Agent Control Plane; geometry=1440x900; pages=6; collaboration modes=3; scheduler strategies=3
+DESKTOP_MODIFIED_RESULT: exit status 0
+
+DESKTOP_ROLLBACK_COMMAND: python artifacts\ROLLBACK.sh ROLLBACK_TEST_COPY.txt
+DESKTOP_ROLLBACK_LITERAL_OUTPUT: rollback fixture PASS; restored branch=baseline field=control
+DESKTOP_ROLLBACK_RESULT: exit status 0; restored behavior/status=branch=baseline, field=control
+
+EXE_BUILD_COMMAND: powershell -NoProfile -ExecutionPolicy Bypass -File frontend\build_exe.ps1
+EXE_BUILD_LITERAL_OUTPUT: Build complete; C:\Users\mmrgr\Documents\sjz\DelphiOpt\dist\DelphiOpt.exe; PyInstaller exit status 0
+EXE_BUILD_RESULT: exit status 0; SHA256=1B0E5AFED28FEDE055D1291AFD46FE486596D4DC9E1D1850FA47A0D72C149BA6
+
+EXE_BASELINE_COMMAND: Start-Process dist\DelphiOpt.exe --self-test-output artifacts\desktop_exe_self_test_final.json -WindowStyle Hidden -Wait
+EXE_BASELINE_LITERAL_OUTPUT: status=passed; models=2; experts=5; commands.models=0; commands.experts=0
+EXE_BASELINE_RESULT: process exit status 0
+
+EXE_MODIFIED_COMMAND: Start-Process dist\DelphiOpt.exe --ui-smoke-output artifacts\desktop_ui_smoke_exe.json -WindowStyle Hidden -Wait
+EXE_MODIFIED_LITERAL_OUTPUT: status=passed; title=DelphiOpt Adaptive Multi-Agent Control Plane; geometry=1440x900; pages=6; collaboration modes=3; scheduler strategies=3
+EXE_MODIFIED_RESULT: process exit status 0
+
+ROLLBACK_COMMAND:
+python artifacts/ROLLBACK.sh ROLLBACK_TEST_COPY.txt
+ROLLBACK_INPUT: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ROLLBACK_TEST_COPY.txt (independent copy)
+ROLLBACK_LITERAL_OUTPUT:
+rollback: restored ROLLBACK_TEST_COPY.txt
+rollback fixture: PASS; restored branch=baseline field=control
+ROLLBACK_RESULT: command exit status 0; rollback test exit status 0; restored behavior/status=branch=baseline, field=control
+
+MAIN_VERIFICATION_COMMAND:
+python benchmarks\generate_tasks.py; python -m ruff check src tests analysis benchmarks; python -m mypy src; python -m pytest --cov=delphiopt --cov-report=term --cov-fail-under=80 -q; python -m pip check
+MAIN_VERIFICATION_LITERAL_RESULT:
+All checks passed!
+Success: no issues found in 19 source files
+29 passed in 5.46s
+TOTAL coverage: 88.32%
+Required test coverage of 80% reached.
+No broken requirements found.
+FINAL_CHECK_EXIT ruff=0 mypy=0 pytest=0 pip_check=0
+MAIN_VERIFICATION_RESULT: generator exit status 0; ruff exit status 0; mypy exit status 0; pytest exit status 0; pip check exit status 0
+
+RUNTIME_VERIFICATION_COMMAND:
+& .\artifacts\runtime_acceptance.ps1
+RUNTIME_VERIFICATION_LITERAL_RESULT:
+status=accepted; correctness=true; measured speedup=51.40569163614655x
+models=true; experts=true; optimize exit status 0; inspect agent_call=true; report exit status 0; benchmark exit status 0; reproduce exit status 0
+trace=true; sqlite=true; run_config=true; summary=true; report=true; reputation=true; persisted patches=1
+budget: total_tokens=628; llm_calls=5; benchmark_runs=8; tool_calls=13
+experiment metrics: model_calls_recorded=5; disagreement_rounds=1; reputation_experts=5; calibration_error=0.25; prediction_error=50.05569163614655
+RUNTIME_VERIFICATION_RESULT: exit status 0
+
+MULTI_ROUND_COMMAND:
+python -m pytest tests/test_integration.py::test_delphi_runs_controlled_feedback_round_when_no_patch_applies -q
+MULTI_ROUND_LITERAL_RESULT:
+1 passed in 0.60s
+MULTI_ROUND_RESULT: exit status 0; restored behavior/status=two Delphi rounds, ten expert calls, rejected when no patch applies
+
+DATASET_RESULT:
+10 distinct tasks; 10 tests passed; 10 benchmarks passed; exit status 0
+
+ABLATION_COMMAND:
+python analysis\run_ablation.py; python analysis\summarize_results.py; python analysis\render_charts.py
+ABLATION_LITERAL_RESULT:
+rows=18; summaries=18; simulation=18; modes=3; schedulers=3; mixes=2; chart_sections=5
+ABLATION_RESULT: exit status 0
+
+PACKAGE_COMMAND:
+python -m pip wheel . --no-deps --wheel-dir artifacts\dist; install wheel into isolated venv; python -m delphiopt models
+PACKAGE_LITERAL_RESULT:
+PACKAGE_FINAL wheel=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\dist\delphiopt-0.1.0-py3-none-any.whl sha256=D1EB39FF6C5366BC1FD6723A52A71A0E959AB9D4B2F058E26945397423C34453 install_exit=0 cli_exit=0 mock_present=true
+PACKAGE_RESULT: exit status 0
+
+DOCKER_RUNTIME_PROBE:
+Docker CLI version 29.2.1; DockerSandbox command timed_out=true because com.docker.service is stopped and this session cannot start the service. LocalSandbox fallback and Docker argv/limit construction are covered by passing tests.
+
+DIFF_FILE_LITERAL_OUTPUT:
+--- ORIGINAL_FILE.txt
++++ MODIFIED_FILE.txt
+@@ -1,2 +1,3 @@
+-branch=baseline
++branch=verified
+ field=control
++
+
+CHINESE_FRONTEND_FINAL_VERIFICATION:
+Changed branch/field: branch=baseline -> branch=verified; field=control
+MODIFIED_FILE=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\MODIFIED_FILE.txt
+DIFF_FILE=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\DIFF_FILE.patch
+VERIFICATION=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\VERIFICATION.txt
+ROLLBACK=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ROLLBACK.sh
+
+CHINESE_FRONTEND_BASELINE_COMMAND:
+python -c "from pathlib import Path; text=Path(r'artifacts/ORIGINAL_FILE.txt').read_text(); assert 'branch=baseline' in text and 'field=control' in text; print('baseline fixture: PASS')"
+CHINESE_FRONTEND_BASELINE_INPUT: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ORIGINAL_FILE.txt
+CHINESE_FRONTEND_BASELINE_LITERAL_OUTPUT: baseline fixture: PASS
+CHINESE_FRONTEND_BASELINE_RESULT: exit status 0
+
+CHINESE_FRONTEND_MODIFIED_COMMAND:
+python -c "from pathlib import Path; text=Path(r'artifacts/MODIFIED_FILE.txt').read_text(); assert 'branch=verified' in text and 'field=control' in text; print('modified fixture: PASS')"
+CHINESE_FRONTEND_MODIFIED_INPUT: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\MODIFIED_FILE.txt
+CHINESE_FRONTEND_MODIFIED_LITERAL_OUTPUT: modified fixture: PASS
+CHINESE_FRONTEND_MODIFIED_RESULT: exit status 0; final state branch=verified field=control
+
+CHINESE_FRONTEND_ROLLBACK_COMMAND:
+python artifacts\ROLLBACK.sh ROLLBACK_TEST_FRONTEND_COPY.txt
+CHINESE_FRONTEND_ROLLBACK_INPUT: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ROLLBACK_TEST_FRONTEND_COPY.txt (independent copy)
+CHINESE_FRONTEND_ROLLBACK_LITERAL_OUTPUT:
+rollback: restored ROLLBACK_TEST_FRONTEND_COPY.txt
+rollback fixture: PASS; restored branch=baseline field=control
+CHINESE_FRONTEND_ROLLBACK_RESULT: rollback exit status 0; verification exit status 0; restored behavior/status=branch=baseline, field=control
+
+CHINESE_FRONTEND_TEST_COMMAND:
+python -m py_compile frontend\app_backend.py frontend\delphiopt_desktop.py; ruff check frontend tests\test_frontend.py; pytest -q
+CHINESE_FRONTEND_TEST_LITERAL_OUTPUT:
+All checks passed!
+33 passed in 6.24s
+CHINESE_FRONTEND_TEST_RESULT: py_compile exit status 0; ruff exit status 0; pytest exit status 0
+
+CHINESE_FRONTEND_BUILD_COMMAND:
+powershell -NoProfile -ExecutionPolicy Bypass -File frontend\build_exe.ps1
+CHINESE_FRONTEND_BUILD_LITERAL_OUTPUT:
+Build complete! The results are available in: C:\Users\mmrgr\Documents\sjz\DelphiOpt\dist
+C:\Users\mmrgr\Documents\sjz\DelphiOpt\dist\DelphiOpt.exe
+CHINESE_FRONTEND_BUILD_RESULT: exit status 0; SHA256=28472A6829E712B84792B273AAF18A3163849B70645D150A0446F164D045EB64; size=14868993 bytes
+
+CHINESE_FRONTEND_EXE_SELF_TEST_COMMAND:
+Start-Process dist\DelphiOpt.exe --self-test-output artifacts\desktop_exe_self_test_chinese.json -WindowStyle Hidden -Wait
+CHINESE_FRONTEND_EXE_SELF_TEST_LITERAL_OUTPUT:
+status=passed; models=2; experts=5; commands.models=0; commands.experts=0
+CHINESE_FRONTEND_EXE_SELF_TEST_RESULT: process exit status 0
+
+CHINESE_FRONTEND_EXE_UI_COMMAND:
+Start-Process dist\DelphiOpt.exe --ui-smoke-output artifacts\desktop_ui_smoke_chinese.json -WindowStyle Hidden -Wait
+CHINESE_FRONTEND_EXE_UI_LITERAL_OUTPUT:
+status=通过; title=DelphiOpt — 自适应多智能体优化控制台; pages=6; settings_tabs=6; budget_fields=6; delphi_fields=9; benchmark_fields=6; sandbox_fields=5; yaml=True; preflight=True; export=True
+CHINESE_FRONTEND_EXE_UI_RESULT: process exit status 0; restored behavior/status=Chinese UI active and all audited controls available
+
+MODEL_ACCESS_AND_LAYOUT_FINAL_VERIFICATION:
+Changed branch/field: branch=baseline -> branch=verified; field=control
+MODIFIED_FILE=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\MODIFIED_FILE.txt
+DIFF_FILE=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\DIFF_FILE.patch
+VERIFICATION=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\VERIFICATION.txt
+ROLLBACK=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ROLLBACK.sh
+
+MODEL_ACCESS_BASELINE_COMMAND:
+python -c "from pathlib import Path; text=Path(r'artifacts/ORIGINAL_FILE.txt').read_text(); assert 'branch=baseline' in text and 'field=control' in text; print('baseline fixture: PASS')"
+MODEL_ACCESS_BASELINE_INPUT: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ORIGINAL_FILE.txt
+MODEL_ACCESS_BASELINE_LITERAL_OUTPUT: baseline fixture: PASS
+MODEL_ACCESS_BASELINE_RESULT: exit status 0
+
+MODEL_ACCESS_MODIFIED_COMMAND:
+python -c "from pathlib import Path; text=Path(r'artifacts/MODIFIED_FILE.txt').read_text(); assert 'branch=verified' in text and 'field=control' in text; print('modified fixture: PASS')"
+MODEL_ACCESS_MODIFIED_INPUT: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\MODIFIED_FILE.txt
+MODEL_ACCESS_MODIFIED_LITERAL_OUTPUT: modified fixture: PASS
+MODEL_ACCESS_MODIFIED_RESULT: exit status 0; final state branch=verified field=control
+
+MODEL_ACCESS_ROLLBACK_COMMAND:
+python artifacts\ROLLBACK.sh ROLLBACK_TEST_FRONTEND_COPY.txt
+MODEL_ACCESS_ROLLBACK_INPUT: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ROLLBACK_TEST_FRONTEND_COPY.txt (independent copy)
+MODEL_ACCESS_ROLLBACK_LITERAL_OUTPUT:
+rollback: restored ROLLBACK_TEST_FRONTEND_COPY.txt
+rollback fixture: PASS; restored branch=baseline field=control
+MODEL_ACCESS_ROLLBACK_RESULT: rollback exit status 0; verification exit status 0; restored behavior/status=branch=baseline, field=control
+
+MODEL_ACCESS_TEST_COMMAND:
+python -m py_compile frontend\delphiopt_desktop.py; ruff check src frontend tests\test_frontend.py; pytest -q
+MODEL_ACCESS_TEST_LITERAL_OUTPUT:
+All checks passed!
+35 passed in 5.73s
+MODEL_ACCESS_TEST_RESULT: py_compile exit status 0; ruff exit status 0; pytest exit status 0
+
+CUSTOM_ENDPOINT_TEST_RESULT:
+Local OpenAI-compatible endpoint received path=/custom/chat, model=custom-model, Authorization=Bearer secret-key; connection test returned 连接成功; included in 35 passing tests.
+
+MODEL_ACCESS_VISUAL_RESULT:
+OPTIMIZE_SCREENSHOT=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\optimize_layout_final.png
+MODEL_ACCESS_SCREENSHOT=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\model_access_layout_final.png
+Observed result: high-DPI scaling=1.99803343166175; dark combobox contrast restored; optimization controls arranged in four aligned columns; model API key and action controls visible.
+
+MODEL_ACCESS_EXE_RESULT:
+EXE=C:\Users\mmrgr\Documents\sjz\DelphiOpt\dist\DelphiOpt.exe
+SHA256=80255AB419B3A4D0742AFC8EB71BBA041B00E28EA03FD7845EBCD32ECB002B2B
+SIZE=14883259 bytes
+SELF_TEST_LITERAL_OUTPUT: status=passed; models=2; experts=5; process exit status 0
+UI_SMOKE_LITERAL_OUTPUT: status=通过; pages=6; settings_tabs=7; model_test=True; mock_test=True; priority=True; layout_columns=4; dpi=1.99803343166175; process exit status 0

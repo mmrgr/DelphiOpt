@@ -1,0 +1,5 @@
+benchmark:
+  warmups: 3
+  repetitions: 10
+  metric: median
+

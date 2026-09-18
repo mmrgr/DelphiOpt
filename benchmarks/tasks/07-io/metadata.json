@@ -1,0 +1,15 @@
+{
+  "id": "07-io",
+  "category": "io",
+  "title": "many small in-memory writes",
+  "known_optimization_opportunity": "join formatted lines before writing",
+  "language": "python",
+  "test_command": "python tests.py",
+  "benchmark_command": "python benchmark.py",
+  "expected_evidence": [
+    "correctness",
+    "warmup",
+    "repeated runtime samples",
+    "held-out input"
+  ]
+}
