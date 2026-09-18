@@ -19,4 +19,5 @@
 - GitHub Actions matrix passed on Ubuntu, Windows, and macOS with Python 3.11 and 3.12.
 - Resumable checkpoints, `delphiopt resume`, provider capability checks, bounded concurrent probes, and interactive patch confirmation are included.
 - The benchmark suite now contains 30 near-real tasks and a budget-matched runner for single, best-of-N, debate, fixed, difficulty, and adaptive Delphi conditions.
-- EXE SHA256: `35B20970A1E32B5E2B6C27EC8B0B3B10C489A1B59E0B2A6EC3742577DF0920C7`
+- Dynamic profiling now records peak `tracemalloc` memory alongside cProfile hotspot evidence.
+- EXE SHA256: `D8A830AE6B7992D35B8F3CEAA38098889101F38EC125A8B4363D68B4A422D016`
