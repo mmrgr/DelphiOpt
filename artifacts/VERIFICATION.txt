@@ -310,3 +310,25 @@ LATEST_MAIN_CI_RESULT: exit status 0; commit=3dc58052e329abbb1c96478c27953072937
 LATEST_EXE_BUILD_COMMAND: powershell -NoProfile -ExecutionPolicy Bypass -File frontend\build_exe.ps1
 LATEST_EXE_BUILD_LITERAL_OUTPUT: Build complete!; SELF=0 UI=0; status=passed; status=通过
 LATEST_EXE_BUILD_RESULT: exit status 0; SHA256=600F3AC14C699EF416FB58DB5C9F705186B0FA73EBA23DE602E67B69934E4DE3; size=14926658 bytes
+
+BENCHMARK_SUITE_VERIFICATION:
+Changed branch/field: branch=baseline -> branch=verified; field=control
+MODIFIED_FILE=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\MODIFIED_FILE.txt
+DIFF_FILE=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\DIFF_FILE.patch
+VERIFICATION=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\VERIFICATION.txt
+ROLLBACK=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ROLLBACK.sh
+BASELINE_COMMAND: python benchmarks\generate_tasks.py; run python tests.py and python benchmark.py in every benchmarks\tasks directory
+BASELINE_LITERAL_OUTPUT: TASK_COUNT=30; tests passed for 30/30; BENCHMARKS=30 FAILED=0 MAX_MS=1958.542
+BASELINE_RESULT: exit status 0
+MODIFIED_COMMAND: python analysis\run_suite.py --limit 3 --output artifacts\suite_smoke_results_3.json
+MODIFIED_LITERAL_OUTPUT: ROWS=18 AGGREGATES=6 SIMULATION=True; correctness_rate=1.00 for all six method/scheduler groups
+MODIFIED_RESULT: exit status 0; single, best_of_n, debate, delphi/fixed, delphi/difficulty, delphi/adaptive_voi all executed under one matched budget
+ROLLBACK_COMMAND: python artifacts\ROLLBACK.sh ROLLBACK_TEST_FRONTEND_COPY.txt
+ROLLBACK_LITERAL_OUTPUT: rollback: restored ROLLBACK_TEST_FRONTEND_COPY.txt; rollback fixture: PASS; restored branch=baseline field=control
+ROLLBACK_RESULT: rollback exit status 0; restored behavior/status=branch=baseline, field=control
+LATEST_MAIN_CI_COMMAND: gh run watch 35344643504 --repo mmrgr/DelphiOpt --exit-status
+LATEST_MAIN_CI_LITERAL_OUTPUT: main ci; 6/6 matrix jobs passed (ubuntu/windows/macos x Python 3.11/3.12)
+LATEST_MAIN_CI_RESULT: exit status 0; commit=d868ac9506bbe62412b749ec7d299bd8742f5814
+LATEST_EXE_BUILD_COMMAND: powershell -NoProfile -ExecutionPolicy Bypass -File frontend\build_exe.ps1
+LATEST_EXE_BUILD_LITERAL_OUTPUT: Build complete!; SELF=0 UI=0; status=passed; status=通过; Best-of-N listed in collaboration controls
+LATEST_EXE_BUILD_RESULT: exit status 0; SHA256=35B20970A1E32B5E2B6C27EC8B0B3B10C489A1B59E0B2A6EC3742577DF0920C7; size=14933827 bytes
