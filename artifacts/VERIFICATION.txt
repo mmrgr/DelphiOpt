@@ -332,3 +332,36 @@ LATEST_MAIN_CI_RESULT: exit status 0; commit=d868ac9506bbe62412b749ec7d299bd8742
 LATEST_EXE_BUILD_COMMAND: powershell -NoProfile -ExecutionPolicy Bypass -File frontend\build_exe.ps1
 LATEST_EXE_BUILD_LITERAL_OUTPUT: Build complete!; SELF=0 UI=0; status=passed; status=通过; Best-of-N listed in collaboration controls
 LATEST_EXE_BUILD_RESULT: exit status 0; SHA256=35B20970A1E32B5E2B6C27EC8B0B3B10C489A1B59E0B2A6EC3742577DF0920C7; size=14933827 bytes
+
+BEST_OF_N_CONCURRENCY_VERIFICATION:
+Changed branch/field: branch=baseline -> branch=verified; field=control
+MODIFIED_FILE=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\MODIFIED_FILE.txt
+DIFF_FILE=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\DIFF_FILE.patch
+VERIFICATION=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\VERIFICATION.txt
+ROLLBACK=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ROLLBACK.sh
+
+BASELINE_COMMAND: python -c "from pathlib import Path; text=Path(r'artifacts/ORIGINAL_FILE.txt').read_text(); assert 'branch=baseline' in text and 'field=control' in text; print('baseline fixture: PASS')"
+BASELINE_INPUT: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ORIGINAL_FILE.txt
+BASELINE_LITERAL_OUTPUT: baseline fixture: PASS
+BASELINE_RESULT: exit status 0
+MODIFIED_COMMAND: python -c "from pathlib import Path; text=Path(r'artifacts/MODIFIED_FILE.txt').read_text(); assert 'branch=verified' in text and 'field=control' in text; print('modified fixture: PASS')"
+MODIFIED_INPUT: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\MODIFIED_FILE.txt
+MODIFIED_LITERAL_OUTPUT: modified fixture: PASS
+MODIFIED_RESULT: exit status 0; final state branch=verified field=control
+ROLLBACK_COMMAND: python artifacts\ROLLBACK.sh ROLLBACK_TEST_FRONTEND_COPY.txt
+ROLLBACK_INPUT: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ROLLBACK_TEST_FRONTEND_COPY.txt (independent copy)
+ROLLBACK_LITERAL_OUTPUT: rollback: restored ROLLBACK_TEST_FRONTEND_COPY.txt; rollback fixture: PASS; restored branch=baseline field=control
+ROLLBACK_RESULT: exit status 0; restored behavior/status=branch=baseline, field=control
+
+CONCURRENCY_TEST_COMMAND: python -m pytest tests\test_core.py::test_best_of_n_batch_limits_concurrent_expert_calls tests\test_integration.py::test_best_of_n_uses_bounded_independent_experts -q; python -m pytest --cov=delphiopt --cov-report=term-missing --cov-fail-under=80 -q
+CONCURRENCY_TEST_LITERAL_OUTPUT: 2 passed; 48 passed; total coverage 88.19%
+CONCURRENCY_TEST_RESULT: exit status 0; max_parallel=2 enforced; Best-of-N integration passed
+SUITE_SMOKE_COMMAND: python analysis\run_suite.py --limit 3 --output artifacts\suite_smoke_results_3.json
+SUITE_SMOKE_LITERAL_OUTPUT: simulation=true; rows=18; aggregates=6; correctness_rate=1.00 for all six method/scheduler groups
+SUITE_SMOKE_RESULT: exit status 0
+GITHUB_CI_COMMAND: gh run watch 35347992028 --repo mmrgr/DelphiOpt --exit-status
+GITHUB_CI_LITERAL_OUTPUT: main ci; 6/6 matrix jobs passed; commit=ae47635a4770c8398e86a4fa16398ee752c489e3
+GITHUB_CI_RESULT: exit status 0
+CURRENT_EXE_BUILD_COMMAND: powershell -NoProfile -ExecutionPolicy Bypass -File frontend\build_exe.ps1; Start-Process dist\DelphiOpt.exe -ArgumentList '--self-test-output artifacts\desktop_exe_self_test_latest4.json' -WindowStyle Hidden -Wait; Start-Process dist\DelphiOpt.exe -ArgumentList '--ui-smoke-output artifacts\desktop_ui_smoke_latest4.json' -WindowStyle Hidden -Wait
+CURRENT_EXE_BUILD_LITERAL_OUTPUT: SELF=0; UI=0; status=passed; status=通过; layout_columns=4; model_test=True; priority=True; SHA256=E15FC522D6A55777D71790822AC22C77E31619C7F0075317612B8FEC454420EF; size=14937512
+CURRENT_EXE_BUILD_RESULT: exit status 0; restored behavior/status=desktop self-test passed and all audited controls available
