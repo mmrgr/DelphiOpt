@@ -16,6 +16,7 @@ from delphiopt.optimizer import CorrectnessGate, ImplementationAgent
 from delphiopt.profiler import DynamicProfiler, StaticProfiler
 from delphiopt.providers import HttpModelProvider, MockModelProvider, probe_model_configs, provider_from_config
 from delphiopt.reputation import ExpertReputationManager
+from delphiopt.runtime import awaitable_run_many
 from delphiopt.sandbox import DockerSandbox, LocalSandbox, sandbox_from_config
 from delphiopt.scheduler import SchedulerState, make_scheduler
 from delphiopt.telemetry import RunTracer, read_events
@@ -126,6 +127,39 @@ def test_agent_provider_failure_is_isolated(tmp_path: Path) -> None:
     )
     assert result is None
     assert len([event for event in read_events(tmp_path, tracer.run_id) if event["event"] == "agent_error"]) == 2
+
+
+def test_best_of_n_batch_limits_concurrent_expert_calls(tmp_path: Path) -> None:
+    class SlowProvider:
+        name = "slow"
+
+        def __init__(self) -> None:
+            self.active = 0
+            self.maximum = 0
+
+        async def generate(self, prompt: str, *, model: str, max_tokens: int, temperature: float = 0.2) -> AgentResponse:
+            self.active += 1
+            self.maximum = max(self.maximum, self.active)
+            await asyncio.sleep(0.02)
+            self.active -= 1
+            return AgentResponse(json.dumps(proposal("independent proposal", 1.1).to_dict()), 4, 5, 0.0, 0.02, model, self.name)
+
+    provider = SlowProvider()
+    agents = [ExpertAgent(f"algorithm_{index}", "Algorithm Expert", "slow", provider) for index in range(4)]
+    results = awaitable_run_many(
+        [(agent, ["slow"]) for agent in agents],
+        "context",
+        "",
+        BudgetManager(),
+        RunTracer(tmp_path),
+        1,
+        100,
+        max_parallel=2,
+        model_configs={},
+    )
+    assert provider.maximum == 2
+    assert len(results) == 4
+    assert all(item[2] is not None for item in results)
 
 
 def test_http_provider_response_shapes_and_factory() -> None:

@@ -4,6 +4,7 @@ import json
 import shutil
 import subprocess
 import tempfile
+import time
 import uuid
 from collections.abc import Callable
 from pathlib import Path
@@ -232,66 +233,125 @@ class OptimizationRuntime:
             observed_evidence = "\n".join(evidence_log[-12:]) or f"baseline median={baseline.median_ms:.3f} ms"
             feedback = protocol.feedback(last_proposals, observed_evidence) if round_number > 1 and last_proposals else ""
             completed.clear()
-            while len(completed) < len(experts):
-                current_evidence = proposals or last_proposals
-                decision = scheduler.schedule(
-                    SchedulerState(
-                        list(experts),
-                        difficulty=min(1.0, len(context) / 5000),
-                        disagreement=protocol.disagreement(current_evidence) if current_evidence else 1.0,
-                        candidate_gain=max(0.0, (current_evidence[0].expected_speedup - 1) if current_evidence else 1.0),
-                        remaining_budget_ratio=budget.remaining_ratio(),
-                        completed_experts=completed,
-                        model_stats=model_stats,
-                    )
-                )
-                expert_id = decision.expert_id
-                if expert_id in completed or expert_id not in experts:
-                    trace.record("scheduler_error", round=round_number, decision=decision.to_dict(), completed=sorted(completed))
-                    break
-                agent = experts[expert_id]
-                model_candidates = self._model_candidates(expert_id, decision.model)
-                decision.model = model_candidates[0]
-                trace.record(
-                    "scheduling_decision",
-                    round=round_number,
-                    decision=decision.to_dict(),
-                    model_candidates=model_candidates,
-                )
-                if decision.action == "stop":
-                    break
-                completed.add(expert_id)
-                if decision.action == "skip":
-                    continue
-                call_feedback = feedback
-                if mode == CollaborationMode.DEBATE and proposals:
-                    call_feedback = "Other agents' proposals are visible in this debate:\n" + visible_peer_feedback(proposals)
-                proposal = None
-                for model_alias in model_candidates:
-                    model_cfg = self.config.get("models", {}).get(model_alias)
-                    call_agent = agent
-                    if model_cfg:
-                        call_agent = ExpertAgent(
-                            expert_id,
-                            agent.persona,
-                            str(model_cfg.get("model", model_alias)),
-                            provider_from_config(model_cfg),
+            if mode == CollaborationMode.BEST_OF_N:
+                batch: list[tuple[ExpertAgent, list[str]]] = []
+                batch_tokens = int(scheduler_cfg.get("base_tokens", 900))
+                while len(completed) < len(experts):
+                    decision = scheduler.schedule(
+                        SchedulerState(
+                            list(experts),
+                            difficulty=min(1.0, len(context) / 5000),
+                            disagreement=1.0,
+                            candidate_gain=1.0,
+                            remaining_budget_ratio=budget.remaining_ratio(),
+                            completed_experts=completed,
+                            model_stats=model_stats,
                         )
-                    before_cost = budget.usage.cost_usd
-                    before_latency = budget.usage.elapsed_seconds
-                    before_calls = budget.usage.llm_calls
-                    proposal = awaitable_run(call_agent, context, call_feedback, budget, trace, round_number, decision.max_tokens)
-                    stats = model_stats.setdefault(model_alias, {"calls": 0.0, "successes": 0.0, "cost_usd": 0.0, "latency_seconds": 0.0})
-                    stats["calls"] += budget.usage.llm_calls - before_calls
-                    stats["cost_usd"] += budget.usage.cost_usd - before_cost
-                    stats["latency_seconds"] += budget.usage.elapsed_seconds - before_latency
-                    if proposal:
-                        stats["successes"] += 1
-                        decision.model = model_alias
-                        models_used[model_alias] = models_used.get(model_alias, 0) + 1
+                    )
+                    expert_id = decision.expert_id
+                    if expert_id in completed or expert_id not in experts:
+                        trace.record("scheduler_error", round=round_number, decision=decision.to_dict(), completed=sorted(completed))
                         break
-                if proposal:
-                    proposals.append(proposal)
+                    model_candidates = self._model_candidates(expert_id, decision.model)
+                    decision.model = model_candidates[0]
+                    trace.record(
+                        "scheduling_decision",
+                        round=round_number,
+                        decision=decision.to_dict(),
+                        model_candidates=model_candidates,
+                        concurrent_batch=True,
+                    )
+                    completed.add(expert_id)
+                    if decision.action == "stop":
+                        break
+                    if decision.action != "skip":
+                        batch.append((experts[expert_id], model_candidates))
+                        batch_tokens = max(batch_tokens, int(decision.max_tokens))
+                if batch:
+                    results = awaitable_run_many(
+                        batch,
+                        context,
+                        feedback,
+                        budget,
+                        trace,
+                        round_number,
+                        max(batch_tokens, 1),
+                        max_parallel=int(scheduler_cfg.get("max_parallel", 4)),
+                        model_configs=self.config.get("models", {}),
+                    )
+                    for expert_id, model_alias, proposal, elapsed in results:
+                        stats = model_stats.setdefault(
+                            model_alias, {"calls": 0.0, "successes": 0.0, "cost_usd": 0.0, "latency_seconds": 0.0}
+                        )
+                        stats["calls"] += 1
+                        stats["latency_seconds"] += elapsed
+                        if proposal:
+                            stats["successes"] += 1
+                            models_used[model_alias] = models_used.get(model_alias, 0) + 1
+                            proposals.append(proposal)
+            else:
+                while len(completed) < len(experts):
+                    current_evidence = proposals or last_proposals
+                    decision = scheduler.schedule(
+                        SchedulerState(
+                            list(experts),
+                            difficulty=min(1.0, len(context) / 5000),
+                            disagreement=protocol.disagreement(current_evidence) if current_evidence else 1.0,
+                            candidate_gain=max(0.0, (current_evidence[0].expected_speedup - 1) if current_evidence else 1.0),
+                            remaining_budget_ratio=budget.remaining_ratio(),
+                            completed_experts=completed,
+                            model_stats=model_stats,
+                        )
+                    )
+                    expert_id = decision.expert_id
+                    if expert_id in completed or expert_id not in experts:
+                        trace.record("scheduler_error", round=round_number, decision=decision.to_dict(), completed=sorted(completed))
+                        break
+                    agent = experts[expert_id]
+                    model_candidates = self._model_candidates(expert_id, decision.model)
+                    decision.model = model_candidates[0]
+                    trace.record(
+                        "scheduling_decision",
+                        round=round_number,
+                        decision=decision.to_dict(),
+                        model_candidates=model_candidates,
+                    )
+                    if decision.action == "stop":
+                        break
+                    completed.add(expert_id)
+                    if decision.action == "skip":
+                        continue
+                    call_feedback = feedback
+                    if mode == CollaborationMode.DEBATE and proposals:
+                        call_feedback = "Other agents' proposals are visible in this debate:\n" + visible_peer_feedback(proposals)
+                    proposal = None
+                    for model_alias in model_candidates:
+                        model_cfg = self.config.get("models", {}).get(model_alias)
+                        call_agent = agent
+                        if model_cfg:
+                            call_agent = ExpertAgent(
+                                expert_id,
+                                agent.persona,
+                                str(model_cfg.get("model", model_alias)),
+                                provider_from_config(model_cfg),
+                            )
+                        before_cost = budget.usage.cost_usd
+                        before_latency = budget.usage.elapsed_seconds
+                        before_calls = budget.usage.llm_calls
+                        proposal = awaitable_run(call_agent, context, call_feedback, budget, trace, round_number, decision.max_tokens)
+                        stats = model_stats.setdefault(
+                            model_alias, {"calls": 0.0, "successes": 0.0, "cost_usd": 0.0, "latency_seconds": 0.0}
+                        )
+                        stats["calls"] += budget.usage.llm_calls - before_calls
+                        stats["cost_usd"] += budget.usage.cost_usd - before_cost
+                        stats["latency_seconds"] += budget.usage.elapsed_seconds - before_latency
+                        if proposal:
+                            stats["successes"] += 1
+                            decision.model = model_alias
+                            models_used[model_alias] = models_used.get(model_alias, 0) + 1
+                            break
+                    if proposal:
+                        proposals.append(proposal)
             if not proposals:
                 stop_reason = "no valid proposals or budget exhausted"
                 break
@@ -671,3 +731,53 @@ def awaitable_run(
         else agent.analyze(context, budget, trace, round_number, max_tokens=max_tokens)
     )
     return asyncio.run(coroutine)
+
+
+def awaitable_run_many(
+    calls: list[tuple[ExpertAgent, list[str]]],
+    context: str,
+    feedback: str,
+    budget: BudgetManager,
+    trace: RunTracer,
+    round_number: int,
+    max_tokens: int,
+    *,
+    max_parallel: int,
+    model_configs: dict[str, dict[str, Any]],
+) -> list[tuple[str, str, Proposal | None, float]]:
+    """Run independent expert calls concurrently with bounded fan-out.
+
+    The shared budget remains authoritative when each agent records its actual
+    provider response. The semaphore limits network concurrency, not budget.
+    """
+
+    import asyncio
+
+    async def run_batch() -> list[tuple[str, str, Proposal | None, float]]:
+        semaphore = asyncio.Semaphore(max(1, max_parallel))
+
+        async def run_one(agent: ExpertAgent, candidates: list[str]) -> tuple[str, str, Proposal | None, float]:
+            async with semaphore:
+                started = time.perf_counter()
+                for alias in candidates:
+                    settings = model_configs.get(alias)
+                    call_agent = agent
+                    if settings:
+                        call_agent = ExpertAgent(
+                            agent.expert_id,
+                            agent.persona,
+                            str(settings.get("model", alias)),
+                            provider_from_config(settings),
+                        )
+                    proposal = await (
+                        call_agent.revise(context, feedback, budget, trace, round_number, max_tokens)
+                        if feedback
+                        else call_agent.analyze(context, budget, trace, round_number, max_tokens=max_tokens)
+                    )
+                    if proposal:
+                        return agent.expert_id, alias, proposal, time.perf_counter() - started
+                return agent.expert_id, candidates[0], None, time.perf_counter() - started
+
+        return list(await asyncio.gather(*(run_one(agent, candidates) for agent, candidates in calls)))
+
+    return asyncio.run(run_batch())

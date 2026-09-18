@@ -33,6 +33,7 @@ scheduler:
   strategy: adaptive_voi
   base_tokens: 900
   tool_budget: 2
+  max_parallel: 4
 
 budget:
   max_cost_usd: 1.0

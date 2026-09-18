@@ -195,7 +195,7 @@ Windows desktop application exposes the complete runtime without replacing the b
 The **高级设置** page provides editable controls for:
 
 * budget: cost, tokens, latency, model calls, benchmark runs, and tool calls;
-* scheduler: fixed/difficulty/adaptive-VOI strategy, base tokens, and per-round tool budget;
+* scheduler: fixed/difficulty/adaptive-VOI strategy, base tokens, per-round tool budget, and bounded Best-of-N parallelism (`max_parallel`);
 * Delphi policy: rounds, disagreement, meaningful speedup, coefficient of variation, marginal gain, utility, no-improvement stopping, and minority bonus;
 * benchmark: warmups, repetitions, timeout, and the project test/benchmark/lint commands;
 * sandbox: local or Docker mode, network toggle, CPU/memory limits, and image;
