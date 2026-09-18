@@ -270,3 +270,15 @@ GITHUB_CI_COMMAND:
 gh run watch 35318965748 --repo mmrgr/DelphiOpt --exit-status
 GITHUB_CI_LITERAL_OUTPUT: ✓ main ci · 35318965748; 6/6 matrix jobs passed (ubuntu/windows/macos × Python 3.11/3.12)
 GITHUB_CI_RESULT: exit status 0; commit=a38cc141c2635d9090bb0adc516392820f30a826
+
+LATEST_MAIN_CI_COMMAND:
+gh run watch 35319151167 --repo mmrgr/DelphiOpt --exit-status
+LATEST_MAIN_CI_LITERAL_OUTPUT: Run ci (35319151167) has already completed with 'success'
+LATEST_MAIN_CI_RESULT: exit status 0; 6/6 matrix jobs passed; commit=d68bfb4e12ca3d4fbbf6bfb0503c10f4e7d673e3
+
+LATEST_EXE_BUILD_COMMAND:
+powershell -NoProfile -ExecutionPolicy Bypass -File frontend\build_exe.ps1
+LATEST_EXE_BUILD_LITERAL_OUTPUT: Build complete! The results are available in: C:\Users\mmrgr\Documents\sjz\DelphiOpt\dist
+LATEST_EXE_BUILD_RESULT: exit status 0; SHA256=DF9AE61CBC002FCBE10565E911691A6118F224033FD3E2D90DE2B0104A16A69F; size=14918498 bytes
+LATEST_EXE_SELF_TEST_LITERAL_OUTPUT: status=passed; models=2; experts=5; process exit status 0
+LATEST_EXE_UI_SMOKE_LITERAL_OUTPUT: status=通过; pages=6; settings_tabs=7; model_test=True; priority=True; layout_columns=4; process exit status 0
