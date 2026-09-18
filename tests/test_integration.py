@@ -11,6 +11,10 @@ def test_mock_end_to_end_accepts_verified_patch(tmp_path: Path) -> None:
     source = Path(__file__).parents[1] / "examples" / "demo_project"
     project = tmp_path / "demo_project"
     shutil.copytree(source, project)
+    (project / "benchmark.py").write_text(
+        "import json\nfrom pathlib import Path\ntext = Path('target.py').read_text()\nprint(json.dumps({'runtime_ms': 1.0 if 'wanted = set(wanted)' in text else 10.0}))\n",
+        encoding="utf-8",
+    )
     summary = OptimizationRuntime().optimize(project)
     assert summary.status == "accepted"
     assert summary.correctness is True

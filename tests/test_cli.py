@@ -36,6 +36,10 @@ def test_cli_optimize_inspect_report_and_benchmark(tmp_path: Path, capsys) -> No
     source = Path(__file__).parents[1] / "examples" / "demo_project"
     project = tmp_path / "demo"
     shutil.copytree(source, project)
+    (project / "benchmark.py").write_text(
+        "import json\nfrom pathlib import Path\ntext = Path('target.py').read_text()\nprint(json.dumps({'runtime_ms': 1.0 if 'wanted = set(wanted)' in text else 10.0}))\n",
+        encoding="utf-8",
+    )
     assert main(["optimize", str(project), "--mode", "single", "--max-rounds", "1"]) == 0
     summary = json.loads(capsys.readouterr().out)
     assert summary["status"] == "accepted"
