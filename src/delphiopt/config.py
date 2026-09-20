@@ -16,7 +16,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "memory": {"persona": "Memory Expert", "model_pool": ["cheap"]},
         "skeptic": {"persona": "Skeptic Agent", "model_pool": ["strong"]},
     },
-    "scheduler": {"strategy": "adaptive_voi", "base_tokens": 900, "tool_budget": 2, "max_parallel": 4},
+    "scheduler": {"strategy": "adaptive_voi", "base_tokens": 900, "tool_budget": 2, "max_parallel": 4, "minimum_experts": 2},
     "collaboration": {"mode": "delphi"},
     "seed": 0,
     "budget": {
@@ -24,7 +24,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "max_tokens": 150000,
         "max_latency_seconds": 900,
         "max_llm_calls": 30,
-        "max_benchmark_runs": 40,
+        "max_benchmark_runs": 72,
         "max_tool_calls": 120,
     },
     "delphi": {
@@ -63,7 +63,15 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "type_command": None,
         "max_modified_files": 3,
     },
-    "sandbox": {"type": "local", "network": False, "cpu_limit": 2, "memory_mb": 2048, "image": "python:3.12-slim"},
+    "sandbox": {
+        "type": "local",
+        "network": False,
+        "cpu_limit": 2,
+        "memory_mb": 2048,
+        "image": "python:3.12-slim",
+        # Set to false to refuse shell execution of project-supplied commands on this host.
+        "allow_host_execution": True,
+    },
 }
 
 
@@ -98,6 +106,9 @@ def validate_config(config: dict[str, Any]) -> None:
         raise ValueError("benchmark.warmups cannot be negative")
     if int(config.get("scheduler", {}).get("max_parallel", 1)) <= 0:
         raise ValueError("scheduler.max_parallel must be positive")
+    if int(config.get("scheduler", {}).get("minimum_experts", 1)) <= 0:
+        raise ValueError("scheduler.minimum_experts must be positive")
+    _validate_benchmark_budget(config)
     if not config.get("models") or not config.get("experts"):
         raise ValueError("models and experts must not be empty")
     model_names = set(config["models"])
@@ -116,6 +127,43 @@ def validate_config(config: dict[str, Any]) -> None:
         unknown = set(pool) - model_names
         if unknown:
             raise ValueError(f"experts.{expert_id}.model_pool references unknown models: {sorted(unknown)}")
+
+
+def benchmark_runs_per_measurement(config: dict[str, Any]) -> int:
+    """Benchmark invocations consumed by one `BenchmarkEngine.run` measurement."""
+
+    values = config.get("benchmark", {})
+    return max(0, int(values.get("warmups", 0))) + max(1, int(values.get("repetitions", 1)))
+
+
+def minimum_required_benchmark_runs(config: dict[str, Any]) -> int:
+    """Runs needed for a baseline plus a single interleaved candidate comparison.
+
+    `BenchmarkEngine.compare` executes warmups and repetitions for *both* variants,
+    so one candidate costs twice a baseline measurement.
+    """
+
+    return benchmark_runs_per_measurement(config) * 3
+
+
+def _validate_benchmark_budget(config: dict[str, Any]) -> None:
+    budget = config.get("budget", {})
+    required = minimum_required_benchmark_runs(config)
+    # A candidate also spends three non-benchmark tool calls: implementation, compile, tests.
+    required_tools = required + 6
+    if int(budget.get("max_benchmark_runs", 0)) < required:
+        raise ValueError(
+            "budget.max_benchmark_runs is too small for the configured benchmark cadence: "
+            f"a baseline plus one interleaved candidate comparison needs {required} runs "
+            f"(warmups + repetitions = {benchmark_runs_per_measurement(config)}, doubled for the comparison); "
+            "raise budget.max_benchmark_runs or lower benchmark.warmups/repetitions, otherwise every candidate "
+            "is starved and no optimization can ever be accepted"
+        )
+    if int(budget.get("max_tool_calls", 0)) < required_tools:
+        raise ValueError(
+            f"budget.max_tool_calls must be at least {required_tools} for the configured benchmark cadence; "
+            "benchmark runs also consume the global tool-call budget"
+        )
 
 
 def load_config_overrides(path: str | Path) -> dict[str, Any]:

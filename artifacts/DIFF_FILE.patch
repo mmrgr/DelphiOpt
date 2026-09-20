@@ -1,7 +1,0 @@
---- ORIGINAL_FILE.txt
-+++ MODIFIED_FILE.txt
-@@ -1,2 +1,3 @@
--branch=baseline
-+branch=verified
- field=control
-+

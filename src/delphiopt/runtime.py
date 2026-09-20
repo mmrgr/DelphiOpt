@@ -21,7 +21,7 @@ from .optimizer import CorrectnessGate, ImplementationAgent
 from .profiler import DynamicProfiler, StaticProfiler
 from .providers import provider_from_config
 from .reputation import ExpertReputationManager
-from .sandbox import sandbox_from_config
+from .sandbox import runs_on_host, sandbox_from_config
 from .scheduler import SchedulerState, make_scheduler
 from .telemetry import RunTracer
 
@@ -82,6 +82,8 @@ class OptimizationRuntime:
             project=str(project_path),
             random_seed=self.config.get("seed", 0),
             git_commit=self._git_commit(project_path),
+            sandbox=type(sandbox).__name__,
+            host_execution=runs_on_host(sandbox),
         )
         context = StaticProfiler().context(project_path)
         trace.record("static_analysis", context=context)
@@ -290,17 +292,29 @@ class OptimizationRuntime:
                             models_used[model_alias] = models_used.get(model_alias, 0) + 1
                             proposals.append(proposal)
             else:
+                # Delphi round one is independent by definition: every panelist must
+                # answer before the scheduler is allowed to trade coverage for cost.
+                # Later rounds fall back to the configured minimum panel size.
+                minimum_experts = (
+                    len(experts)
+                    if round_number == 1 and mode == CollaborationMode.DELPHI
+                    else max(1, int(scheduler_cfg.get("minimum_experts", 2)))
+                )
                 while len(completed) < len(experts):
                     current_evidence = proposals or last_proposals
                     decision = scheduler.schedule(
                         SchedulerState(
                             list(experts),
                             difficulty=min(1.0, len(context) / 5000),
-                            disagreement=protocol.disagreement(current_evidence) if current_evidence else 1.0,
+                            # Disagreement over fewer than two proposals is undefined, not
+                            # zero; reporting it as zero made the scheduler stop the panel
+                            # after two experts and silently break Delphi round one.
+                            disagreement=protocol.disagreement(current_evidence) if len(current_evidence) >= 2 else 1.0,
                             candidate_gain=max(0.0, (current_evidence[0].expected_speedup - 1) if current_evidence else 1.0),
                             remaining_budget_ratio=budget.remaining_ratio(),
                             completed_experts=completed,
                             model_stats=model_stats,
+                            minimum_experts=minimum_experts,
                         )
                     )
                     expert_id = decision.expert_id
@@ -452,13 +466,6 @@ class OptimizationRuntime:
                         f"candidate={candidate.id} correctness=passed speedup={speedup:.4f} "
                         f"ci95=[{comparison.ci95_low:.4f},{comparison.ci95_high:.4f}] cv={coefficient_of_variation:.4f}"
                     )
-                    file_limit = max_modified_files if max_modified_files is not None else int(project_cfg.get("max_modified_files", 3))
-                    if len(patch.files) > file_limit:
-                        reason = f"changed {len(patch.files)} files; limit is {file_limit}"
-                        trace.record("candidate_decision", proposal_id=candidate.id, decision="rejected", reason=reason)
-                        evidence_log.append(f"candidate={candidate.id} patch=rejected reason={reason}")
-                        reputation.update(candidate, correctness=False, actual_speedup=1.0)
-                        continue
                     if (
                         result.samples_ms
                         and speedup >= meaningful_speedup

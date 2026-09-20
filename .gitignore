@@ -18,8 +18,18 @@ artifacts/desktop_app_home/
 artifacts/dist/
 artifacts/*.json
 artifacts/*.png
+artifacts/*.patch
+artifacts/*.txt
+artifacts/*.sh
+!artifacts/runtime_acceptance.ps1
 !artifacts/desktop_exe_self_test_model_access.json
 !artifacts/desktop_ui_smoke_model_access.json
 !artifacts/ui_smoke_model_access.json
 !artifacts/optimize_layout_final.png
 !artifacts/model_access_layout_final.png
+
+# Regenerated experiment output; keep the scripts, not their results.
+analysis/ablation_results.json
+analysis/ablation_summary.json
+analysis/ablation_report.html
+analysis/suite_results.json

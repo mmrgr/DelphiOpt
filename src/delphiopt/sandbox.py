@@ -23,10 +23,29 @@ class CommandResult:
         return self.return_code == 0 and not self.timed_out
 
 
+class HostExecutionRefused(RuntimeError):
+    """Raised when host execution is disabled but a command was requested."""
+
+
 class LocalSandbox:
-    """Development fallback; use DockerSandbox for untrusted code."""
+    """Development fallback; use DockerSandbox for untrusted code.
+
+    Commands are handed to the system shell, and they originate from the target
+    project's `delphiopt.yaml`. Running DelphiOpt against an untrusted repository
+    therefore executes that repository's shell commands with the caller's
+    privileges. Set `sandbox.allow_host_execution: false` to refuse host
+    execution outright, or select the Docker sandbox.
+    """
+
+    def __init__(self, *, allow_host_execution: bool = True) -> None:
+        self.allow_host_execution = allow_host_execution
 
     def run(self, command: str, cwd: str | Path, timeout_seconds: float = 120) -> CommandResult:
+        if not self.allow_host_execution:
+            raise HostExecutionRefused(
+                "sandbox.allow_host_execution is false; refusing to run project commands on the host. "
+                "Use the Docker sandbox or enable host execution explicitly."
+            )
         return self._execute(command, cwd, timeout_seconds, shell=True)
 
     def _execute(self, command: str | list[str], cwd: str | Path, timeout_seconds: float, *, shell: bool) -> CommandResult:
@@ -92,7 +111,7 @@ def sandbox_from_config(config: dict[str, Any] | None = None) -> LocalSandbox:
     values = config or {}
     kind = str(values.get("type", "local")).lower()
     if kind == "local":
-        return LocalSandbox()
+        return LocalSandbox(allow_host_execution=bool(values.get("allow_host_execution", True)))
     if kind == "docker":
         return DockerSandbox(
             cpu_limit=int(values.get("cpu_limit", 2)),
@@ -101,3 +120,22 @@ def sandbox_from_config(config: dict[str, Any] | None = None) -> LocalSandbox:
             image=str(values.get("image", "python:3.12-slim")),
         )
     raise ValueError(f"unknown sandbox type: {kind}")
+
+
+def runs_on_host(sandbox: LocalSandbox) -> bool:
+    """True when the sandbox executes commands directly on this machine."""
+
+    # DockerSandbox subclasses LocalSandbox but never executes on the host.
+    return isinstance(sandbox, LocalSandbox) and not isinstance(sandbox, DockerSandbox)
+
+
+def host_execution_warning(sandbox: LocalSandbox) -> str | None:
+    """Explain the trust boundary once when commands will run on the host."""
+
+    if not runs_on_host(sandbox):
+        return None
+    return (
+        "DelphiOpt is executing project-supplied commands on this host via the system shell. "
+        "Treat the target project's delphiopt.yaml as executable input and review its "
+        "test/benchmark/lint commands before continuing. Use --sandbox docker for untrusted projects."
+    )

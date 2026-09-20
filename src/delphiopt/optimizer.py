@@ -49,17 +49,25 @@ class ImplementationAgent:
             )
         return PatchResult(bool(after), list(after), "".join(lines), self._explanation(proposal, after), originals)
 
+    @staticmethod
+    def _is_file_header(lines: list[str], index: int) -> bool:
+        """A file header is a `--- ` line immediately followed by a `+++ ` line.
+
+        Testing the pair matters: a *removed* line whose content starts with `-- `
+        also renders as `--- `, and matching on that alone truncated the hunk.
+        """
+
+        return lines[index].startswith("--- ") and index + 1 < len(lines) and lines[index + 1].startswith("+++ ")
+
     def _apply_patch(self, root: Path, proposal: Proposal) -> PatchResult:
         modified: dict[str, str] = {}
         originals: dict[str, bytes] = {}
         lines = proposal.patch.splitlines(keepends=True)
         index = 0
         while index < len(lines):
-            if not lines[index].startswith("--- "):
+            if not self._is_file_header(lines, index):
                 index += 1
                 continue
-            if index + 1 >= len(lines) or not lines[index + 1].startswith("+++ "):
-                raise ValueError("invalid unified diff file header")
             new_name = lines[index + 1][4:].strip().split("\t", 1)[0]
             relative = new_name.removeprefix("b/")
             target = (root / relative).resolve()
@@ -73,36 +81,43 @@ class ImplementationAgent:
             output: list[str] = []
             source_index = 0
             index += 2
-            while index < len(lines) and not lines[index].startswith("--- "):
-                if not lines[index].startswith("@@"):
+            while index < len(lines):
+                line = lines[index]
+                if line.startswith("@@"):
+                    match = re.match(r"@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@", line)
+                    if not match:
+                        raise ValueError("invalid unified diff hunk header")
+                    old_start = int(match.group(1)) - 1
+                    if old_start < source_index or old_start > len(source):
+                        raise ValueError("unified diff hunk is out of range")
+                    output.extend(source[source_index:old_start])
+                    source_index = old_start
                     index += 1
                     continue
-                match = re.match(r"@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@", lines[index])
-                if not match:
-                    raise ValueError("invalid unified diff hunk header")
-                old_start = int(match.group(1)) - 1
-                if old_start < source_index or old_start > len(source):
-                    raise ValueError("unified diff hunk is out of range")
-                output.extend(source[source_index:old_start])
-                source_index = old_start
-                index += 1
-                while index < len(lines) and not lines[index].startswith(("@@", "--- ")):
-                    line = lines[index]
-                    if line.startswith("\\ No newline"):
-                        index += 1
-                        continue
-                    prefix, content = line[:1], line[1:]
-                    if prefix in {" ", "-"}:
-                        if source_index >= len(source) or source[source_index].rstrip("\r\n") != content.rstrip("\r\n"):
-                            raise ValueError("unified diff context does not match source")
-                        if prefix == " ":
-                            output.append(source[source_index])
-                        source_index += 1
-                    elif prefix == "+":
-                        output.append(content)
-                    else:
-                        raise ValueError("invalid unified diff line")
+                # Only a real `--- ` / `+++ ` pair ends this file section, so removed
+                # lines that happen to look like a header stay inside the hunk.
+                if self._is_file_header(lines, index):
+                    break
+                if line.startswith(("+++ ", "diff ", "index ")):
+                    break
+                if line.startswith("\\"):
                     index += 1
+                    continue
+                if line.strip() == "":
+                    # Some emitters write an empty context line without the leading space.
+                    line = " " + line
+                prefix, content = line[:1], line[1:]
+                if prefix in {" ", "-"}:
+                    if source_index >= len(source) or source[source_index].rstrip("\r\n") != content.rstrip("\r\n"):
+                        raise ValueError("unified diff context does not match source")
+                    if prefix == " ":
+                        output.append(source[source_index])
+                    source_index += 1
+                elif prefix == "+":
+                    output.append(content)
+                else:
+                    raise ValueError("invalid unified diff line")
+                index += 1
             output.extend(source[source_index:])
             modified[relative] = "".join(output)
         if not modified:

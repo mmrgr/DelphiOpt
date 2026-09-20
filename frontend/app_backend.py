@@ -66,7 +66,11 @@ class FrontendBackend:
         base: Path | None = None,
         overrides: dict[str, Any] | None = None,
     ) -> Path:
-        path = Path(tempfile.gettempdir()) / "delphiopt-desktop-overrides.yaml"
+        # A fixed shared path let two desktop instances (or two queued runs) overwrite
+        # each other's overrides; every call now writes its own file.
+        handle = tempfile.NamedTemporaryFile(prefix="delphiopt-desktop-", suffix=".yaml", delete=False, mode="w", encoding="utf-8")
+        handle.close()
+        path = Path(handle.name)
         values: dict[str, Any] = {}
         if base and base.exists():
             values = yaml.safe_load(base.read_text(encoding="utf-8")) or {}

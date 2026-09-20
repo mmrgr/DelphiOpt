@@ -96,6 +96,17 @@ def test_interrupted_run_resumes_from_checkpoint(tmp_path: Path) -> None:
     assert any(event["event"] == "run_resumed" for event in events)
 
 
+def test_delphi_round_one_consults_every_configured_expert(tmp_path: Path) -> None:
+    source = Path(__file__).parents[1] / "examples" / "demo_project"
+    project = tmp_path / "demo_project"
+    shutil.copytree(source, project, ignore=shutil.ignore_patterns(".delphiopt", "__pycache__"))
+    summary = OptimizationRuntime().optimize(project, write_changes=False)
+    events = read_events(project / ".delphiopt" / "runs", summary.run_id)
+    first_round = {event["expert"] for event in events if event.get("event") == "agent_call" and event.get("round") == 1}
+    assert first_round == {"algorithm", "compiler", "systems", "memory", "skeptic"}
+    assert summary.llm_calls == len(first_round)
+
+
 def test_best_of_n_uses_bounded_independent_experts(tmp_path: Path) -> None:
     project = tmp_path / "best-of-n"
     project.mkdir()

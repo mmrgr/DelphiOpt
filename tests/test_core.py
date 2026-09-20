@@ -7,10 +7,12 @@ import urllib.error
 from pathlib import Path
 from typing import Self
 
+import pytest
+
 from delphiopt.agents import ExpertAgent
 from delphiopt.benchmark import BenchmarkEngine
 from delphiopt.budget import BudgetExhausted, BudgetManager
-from delphiopt.config import DEFAULT_CONFIG, load_config
+from delphiopt.config import DEFAULT_CONFIG, load_config, merge_config, validate_config
 from delphiopt.delphi import ConvergencePolicy, DelphiProtocol, StoppingPolicy
 from delphiopt.models import AgentResponse, BudgetLimits, Proposal
 from delphiopt.optimizer import CorrectnessGate, ImplementationAgent
@@ -298,6 +300,89 @@ def test_benchmark_rejects_partial_evidence_when_budget_exhausts(tmp_path: Path)
     result = BenchmarkEngine(warmups=1, repetitions=3).run("python benchmark.py", tmp_path, budget)
     assert result.repetitions == 0
     assert "budget exhausted" in result.error
+
+
+def test_config_rejects_budget_that_cannot_fund_one_candidate(tmp_path: Path) -> None:
+    # A baseline plus one interleaved comparison needs 3 * (warmups + repetitions) runs.
+    starved = merge_config(DEFAULT_CONFIG, {"budget": {"max_benchmark_runs": 20}, "benchmark": {"warmups": 2, "repetitions": 5}})
+    with pytest.raises(ValueError, match="max_benchmark_runs is too small"):
+        validate_config(starved)
+
+    affordable = merge_config(DEFAULT_CONFIG, {"budget": {"max_benchmark_runs": 60}, "benchmark": {"warmups": 2, "repetitions": 5}})
+    validate_config(affordable)
+
+    starved_tools = merge_config(DEFAULT_CONFIG, {"budget": {"max_tool_calls": 5}, "benchmark": {"warmups": 2, "repetitions": 7}})
+    with pytest.raises(ValueError, match="max_tool_calls"):
+        validate_config(starved_tools)
+
+
+def test_benchmark_compare_keeps_collected_samples_when_budget_exhausts(tmp_path: Path) -> None:
+    baseline = tmp_path / "baseline"
+    candidate = tmp_path / "candidate"
+    baseline.mkdir()
+    candidate.mkdir()
+    for folder, runtime in ((baseline, 10.0), (candidate, 5.0)):
+        (folder / "benchmark.py").write_text(f"import json; print(json.dumps({{'runtime_ms': {runtime}}}))", encoding="utf-8")
+    # 12 interleaved samples are requested but only 8 runs are funded.
+    budget = BudgetManager(BudgetLimits(max_benchmark_runs=8, max_tool_calls=100))
+    comparison = BenchmarkEngine(warmups=0, repetitions=6, bootstrap_resamples=50).compare(
+        "python benchmark.py", baseline, candidate, budget
+    )
+    assert budget.usage.benchmark_runs == 8
+    assert len(comparison.baseline.samples_ms) >= 3
+    assert len(comparison.candidate.samples_ms) >= 3
+    assert "budget exhausted" in comparison.candidate.error
+    assert comparison.speedup > 1.0
+
+
+def test_unified_diff_keeps_removed_lines_that_look_like_file_headers(tmp_path: Path) -> None:
+    # A removed line whose content starts with "-- " renders as "--- " and must stay
+    # inside the hunk instead of being parsed as the next file header.
+    root = tmp_path / "project"
+    root.mkdir()
+    (root / "a.py").write_text("keep\ndelete -- this\nkeep2\n", encoding="utf-8")
+    patch = (
+        "--- a/a.py\n"
+        "+++ b/a.py\n"
+        "@@ -1,3 +1,3 @@\n"
+        " keep\n"
+        "-delete -- this\n"
+        "+added\n"
+        " keep2\n"
+    )
+    proposal = Proposal(id="p", hypothesis="h", bottleneck="b", transformation="t", expected_speedup=1.2, confidence=0.5,
+                        implementation_cost=0.1, correctness_risk=0.1, patch=patch)
+    result = ImplementationAgent().apply(root, proposal)
+    assert result.applied is True
+    assert (root / "a.py").read_text(encoding="utf-8") == "keep\nadded\nkeep2\n"
+
+
+def test_unified_diff_validates_context_before_writing(tmp_path: Path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    (root / "a.py").write_text("one\ntwo\n", encoding="utf-8")
+    proposal = Proposal(id="p", hypothesis="h", bottleneck="b", transformation="t", expected_speedup=1.2, confidence=0.5,
+                        implementation_cost=0.1, correctness_risk=0.1,
+                        patch="--- a/a.py\n+++ b/a.py\n@@ -1,2 +1,2 @@\n one\n-wrong\n+right\n")
+    with pytest.raises(ValueError, match="context does not match"):
+        ImplementationAgent().apply(root, proposal)
+    assert (root / "a.py").read_text(encoding="utf-8") == "one\ntwo\n"
+
+
+def test_local_sandbox_can_refuse_host_execution(tmp_path: Path) -> None:
+    from delphiopt.sandbox import HostExecutionRefused, host_execution_warning
+
+    refused = LocalSandbox(allow_host_execution=False)
+    with pytest.raises(HostExecutionRefused):
+        refused.run("python -c 'print(1)'", tmp_path, 10)
+    assert host_execution_warning(refused) is not None
+
+    docker = sandbox_from_config({"type": "docker"})
+    assert host_execution_warning(docker) is None
+
+    allowed = LocalSandbox()
+    assert host_execution_warning(allowed) is not None
+    assert allowed.allow_host_execution is True
 
 
 def test_benchmark_timeout_is_evidence_failure(tmp_path: Path) -> None:

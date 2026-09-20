@@ -34,13 +34,17 @@ scheduler:
   base_tokens: 900
   tool_budget: 2
   max_parallel: 4
+  # Delphi round one always asks every expert; later rounds may stop at this panel size.
+  minimum_experts: 2
 
 budget:
   max_cost_usd: 1.0
   max_tokens: 150000
   max_latency_seconds: 900
   max_llm_calls: 30
-  max_benchmark_runs: 40
+  # One measurement costs warmups + repetitions; a candidate comparison costs twice
+  # that. 72 runs covers the baseline plus three interleaved comparisons.
+  max_benchmark_runs: 72
   max_tool_calls: 120
 
 delphi:
@@ -81,3 +85,6 @@ sandbox:
   cpu_limit: 2
   memory_mb: 2048
   image: python:3.12-slim
+  # Local execution runs project-supplied commands through the host shell.
+  # Set to false to refuse host execution, or use type: docker for untrusted projects.
+  allow_host_execution: true

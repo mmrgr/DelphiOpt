@@ -67,6 +67,8 @@ delphiopt optimize examples/demo_project --only-analyze
 delphiopt optimize examples/demo_project --dry-run --max-files 2 --budget-usd 0.50
 # ask before writing a verified patch
 delphiopt optimize examples/demo_project --confirm
+# run project commands in a container instead of on this host
+delphiopt optimize examples/demo_project --sandbox docker
 ```
 
 The demo contains an intentionally slow list-membership hot loop. DelphiOpt runs baseline tests and benchmarks, elicits five expert proposals, ranks candidates, applies a set-membership patch in a temporary copy, reruns correctness and repeated performance tests, and copies the patch back only after the evidence gate passes.
@@ -97,7 +99,7 @@ delphiopt resume RUN_ID
 delphiopt experts
 ```
 
-`RUN_ID` is printed in the optimization JSON and traces live under `examples/demo_project/.delphiopt/runs/`. Every run also writes an atomic `RUN_ID.checkpoint.json`; if a process is interrupted, continue it with `delphiopt resume RUN_ID` (or pass `--project` and `--runs-root` when running from elsewhere). `models --check` concurrently probes configured endpoints and reports configuration, reachability, and structured-response support.
+`RUN_ID` is printed in the optimization JSON and traces live under `examples/demo_project/.delphiopt/runs/`. Every run also writes an atomic `RUN_ID.checkpoint.json`; if a process is interrupted, continue it with `delphiopt resume RUN_ID` (or pass `--project` and `--runs-root` when running from elsewhere). `models --check` concurrently probes configured endpoints and reports configuration, reachability, and structured-response support. `delphiopt reproduce RUN_ID` replays a recorded run as evidence only — it never writes back to the project source.
 
 ## Configuration
 
@@ -108,20 +110,23 @@ models:
 experts:
   algorithm: {persona: Algorithm Expert, model_pool: [cheap, strong]}
   skeptic: {persona: Skeptic Agent, model_pool: [strong]}
-scheduler: {strategy: adaptive_voi, base_tokens: 900, tool_budget: 2}
+scheduler: {strategy: adaptive_voi, base_tokens: 900, tool_budget: 2, minimum_experts: 2}
 collaboration: {mode: delphi}
 budget:
   max_cost_usd: 1.0
   max_tokens: 150000
   max_latency_seconds: 900
   max_llm_calls: 30
-  max_benchmark_runs: 20
+  # A measurement costs warmups + repetitions; an interleaved candidate comparison
+  # costs twice that. Budget for the baseline plus the comparisons you want to run.
+  max_benchmark_runs: 60
+  max_tool_calls: 120
 delphi: {max_rounds: 3, meaningful_speedup: 1.05}
 benchmark: {warmups: 2, repetitions: 5, timeout_seconds: 120}
 sandbox: {type: local, network: false, cpu_limit: 2, memory_mb: 2048}
 ```
 
-Configuration precedence is defaults → project `delphiopt.yaml` → explicit `--config` → CLI flags. Merge operations deep-copy state, validate positive budgets, reject unknown models, and preserve project test/benchmark commands. Use `--budget-usd`, `--max-rounds`, `--mode single|debate|delphi`, `--dry-run`, `--confirm`, `--only-analyze`, and `--max-files` for final overrides. Real providers use `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GEMINI_API_KEY`; see `configs/real-providers.yaml.example`. Providers account for reported token usage, retry transient HTTP failures with exponential backoff, and can be checked with `models --check` before an optimization run.
+Configuration precedence is defaults → project `delphiopt.yaml` → explicit `--config` → CLI flags. Merge operations deep-copy state, validate positive budgets, reject unknown models, and preserve project test/benchmark commands. Validation also rejects a `budget.max_benchmark_runs` that cannot fund a baseline plus at least one interleaved candidate comparison, because a starved comparison silently rejects every candidate. Use `--budget-usd`, `--max-rounds`, `--mode single|debate|delphi`, `--dry-run`, `--confirm`, `--only-analyze`, and `--max-files` for final overrides. Real providers use `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GEMINI_API_KEY`; see `configs/real-providers.yaml.example`. Providers account for reported token usage, retry transient HTTP failures with exponential backoff, and can be checked with `models --check` before an optimization run.
 
 ## Protocol and scheduling
 
@@ -259,7 +264,13 @@ GitHub Actions runs the same lint, type-check, and coverage-gated test commands.
 
 ## Safety and limitations
 
-Candidates run in independent temporary copies. `LocalSandbox` executes commands on the host and terminates the launched process tree when a command times out. `DockerSandbox` provides the network-disabled, CPU/memory-limited execution path when Docker is available.
+Candidates run in independent temporary copies. `LocalSandbox` executes commands on the host through the system shell and terminates the launched process tree when a command times out. Because the test, benchmark, lint, and type commands come from the target project's `delphiopt.yaml`, running DelphiOpt against an untrusted repository executes that repository's shell commands with your privileges — treat `delphiopt.yaml` as executable input and review it before use.
+
+Three controls exist for that boundary:
+
+* `sandbox: {type: docker}` (or `--sandbox docker`) runs commands in a network-disabled, CPU/memory-limited container; this is the right choice for untrusted projects.
+* `sandbox: {allow_host_execution: false}` makes DelphiOpt refuse host execution outright; the CLI then exits with status `2` and an explanatory message instead of running anything.
+* Any local run prints a host-execution warning to stderr and records `host_execution` in the run trace, so the choice is visible in the evidence rather than implied.
 
 Before copying an accepted patch back, DelphiOpt checks that every target file still matches the snapshot used for candidate evaluation. A file edited during the run is left untouched, and a partial multi-file copy failure restores the original bytes.
 

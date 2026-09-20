@@ -15,7 +15,7 @@ from .profiler import DynamicProfiler, StaticProfiler
 from .providers import probe_model_configs
 from .reporting import render_run_report
 from .runtime import OptimizationRuntime
-from .sandbox import sandbox_from_config
+from .sandbox import HostExecutionRefused, LocalSandbox, host_execution_warning, sandbox_from_config
 from .telemetry import read_events
 
 
@@ -32,9 +32,11 @@ def build_parser() -> argparse.ArgumentParser:
     optimize.add_argument("--confirm", action="store_true", help="ask before applying a verified candidate")
     optimize.add_argument("--only-analyze", action="store_true", help="profile the project without calling models")
     optimize.add_argument("--max-files", type=int, help="maximum number of files an accepted patch may change")
+    optimize.add_argument("--sandbox", choices=("local", "docker"), help="override the configured sandbox for this run")
     benchmark = sub.add_parser("benchmark", help="run a project benchmark")
     benchmark.add_argument("project")
     benchmark.add_argument("--config")
+    benchmark.add_argument("--sandbox", choices=("local", "docker"), help="override the configured sandbox for this run")
     for name in ("inspect", "report", "reproduce"):
         item = sub.add_parser(name)
         item.add_argument("run_id")
@@ -51,8 +53,32 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _apply_sandbox_override(config: dict[str, Any], override: str | None) -> None:
+    """Apply an explicit `--sandbox` choice and announce host execution once."""
+
+    values = config.setdefault("sandbox", {})
+    if override:
+        values["type"] = override
+    warning = host_execution_warning(sandbox_from_config(values))
+    if warning:
+        print(f"warning: {warning}", file=sys.stderr)
+
+
+def _select_sandbox(config: dict[str, Any], override: str | None) -> LocalSandbox:
+    _apply_sandbox_override(config, override)
+    return sandbox_from_config(config.get("sandbox"))
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    try:
+        return _dispatch(args)
+    except HostExecutionRefused as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
+
+def _dispatch(args: argparse.Namespace) -> int:
     if args.command == "models":
         config = load_config(args.config) if args.config else load_config()
         if args.check:
@@ -72,7 +98,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.only_analyze:
             findings = [item.to_dict() for item in StaticProfiler().analyze(project)]
             benchmark_command = str(config.get("project", {}).get("benchmark_command", ""))
-            dynamic = DynamicProfiler(sandbox_from_config(config.get("sandbox"))).profile(
+            dynamic = DynamicProfiler(_select_sandbox(config, args.sandbox)).profile(
                 benchmark_command, project, float(config.get("benchmark", {}).get("timeout_seconds", 120))
             )
             print(json.dumps({"project": str(project), "findings": findings, "dynamic_profile": dynamic.to_dict()}, indent=2))
@@ -85,6 +111,7 @@ def main(argv: list[str] | None = None) -> int:
             config["collaboration"]["mode"] = args.mode
         validate_config(config)
         confirm = _confirm_candidate if args.confirm and not args.dry_run else None
+        _apply_sandbox_override(config, args.sandbox)
         optimize_summary = OptimizationRuntime(config).optimize(
             project, write_changes=not args.dry_run, max_modified_files=args.max_files, confirm=confirm
         )
@@ -110,7 +137,7 @@ def main(argv: list[str] | None = None) -> int:
         project = Path(args.project).resolve()
         config = _effective_config(project, args.config)
         cfg = config.get("project", {})
-        sandbox = sandbox_from_config(config.get("sandbox"))
+        sandbox = _select_sandbox(config, args.sandbox)
         budget = BudgetManager()
         gate = CorrectnessGate(sandbox).run(
             project,
@@ -160,8 +187,15 @@ def main(argv: list[str] | None = None) -> int:
             print("run has no project metadata", file=sys.stderr)
             return 1
         run_config = root / f"{args.run_id}.run_config.yaml"
-        reproduce_config = load_config(run_config) if run_config.exists() else None
-        print(json.dumps(OptimizationRuntime(reproduce_config).optimize(str(project_path_str)).to_dict(), indent=2))
+        if run_config.exists():
+            reproduce_config = load_config(run_config)
+        else:
+            # Fall back to the project's own configuration so the reproduced run keeps
+            # the original test/benchmark commands instead of silent library defaults.
+            reproduce_config = _effective_config(Path(project_path_str).resolve(), None)
+        # Reproduction is an evidence replay, never a second write to the user's source.
+        summary = OptimizationRuntime(reproduce_config).optimize(str(project_path_str), write_changes=False)
+        print(json.dumps({"replay": True, "source_unchanged": True, **summary.to_dict()}, indent=2))
         return 0
     return 1
 

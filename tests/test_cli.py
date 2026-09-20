@@ -69,6 +69,40 @@ def test_cli_optimize_inspect_report_and_benchmark(tmp_path: Path, capsys) -> No
     assert '"correctness": true' in capsys.readouterr().out.lower()
 
 
+def test_cli_optimize_refuses_host_execution_when_disabled(tmp_path: Path, capsys) -> None:
+    project = tmp_path / "locked"
+    project.mkdir()
+    (project / "tests.py").write_text("assert True\n", encoding="utf-8")
+    (project / "benchmark.py").write_text("import json; print(json.dumps({'runtime_ms': 1.0}))\n", encoding="utf-8")
+    (project / "delphiopt.yaml").write_text(
+        "project:\n  test_command: python tests.py\n  benchmark_command: python benchmark.py\n"
+        "sandbox:\n  allow_host_execution: false\n",
+        encoding="utf-8",
+    )
+    assert main(["optimize", str(project)]) == 2
+    assert "allow_host_execution" in capsys.readouterr().err
+
+
+def test_cli_reproduce_replays_evidence_without_writing_source(tmp_path: Path, capsys) -> None:
+    source = Path(__file__).parents[1] / "examples" / "demo_project"
+    project = tmp_path / "demo"
+    shutil.copytree(source, project, ignore=shutil.ignore_patterns(".delphiopt", "__pycache__"))
+    original = (project / "target.py").read_text(encoding="utf-8")
+
+    assert main(["optimize", str(project)]) == 0
+    first = json.loads(capsys.readouterr().out)
+    assert (project / "target.py").read_text(encoding="utf-8") != original
+
+    # Revert the patch, then replay: reproduction must not touch the source again.
+    (project / "target.py").write_text(original, encoding="utf-8")
+    runs = project / ".delphiopt" / "runs"
+    assert main(["reproduce", first["run_id"], "--runs-root", str(runs)]) == 0
+    replay = json.loads(capsys.readouterr().out)
+    assert replay["replay"] is True
+    assert replay["status"] == "accepted_dry_run"
+    assert (project / "target.py").read_text(encoding="utf-8") == original
+
+
 def test_cli_resume_uses_checkpoint_metadata(tmp_path: Path, capsys) -> None:
     project = tmp_path / "resume-project"
     project.mkdir()

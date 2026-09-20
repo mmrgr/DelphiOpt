@@ -98,18 +98,35 @@ class BenchmarkEngine:
         memory = {"baseline": 0.0, "candidate": 0.0}
         last: dict[str, CommandResult | None] = {"baseline": None, "candidate": None}
         paths = {"baseline": baseline_cwd, "candidate": candidate_cwd}
+        starved = False
         for label in labels:
             result = self._run_once(command, paths[label], budget)
-            if result is None or not result.ok:
-                failed = self._budget_failed(command, correctness_passed) if result is None else self._failed(command, result, False)
+            if result is None:
+                # The budget is authoritative, but discarding every already-collected
+                # sample made a starvation event indistinguishable from "no speedup"
+                # and turned late candidates into automatic rejections. Fall back to
+                # the samples gathered so far when enough remain for a stable median.
+                starved = True
+                break
+            if not result.ok:
+                failed = self._failed(command, result, False)
                 return BenchmarkComparison(failed, failed, 0.0, 0.0, 0.0)
             sample, reported_memory = self._sample(result)
             samples[label].append(sample)
             memory[label] = max(memory[label], reported_memory)
             last[label] = result
 
+        minimum_samples = max(3, self.repetitions // 2)
+        if starved and (len(samples["baseline"]) < minimum_samples or len(samples["candidate"]) < minimum_samples):
+            failed = self._budget_failed(command, correctness_passed)
+            return BenchmarkComparison(failed, failed, 0.0, 0.0, 0.0)
+
         baseline = self._summarize(command, samples["baseline"], memory["baseline"], correctness_passed, last["baseline"])
         candidate = self._summarize(command, samples["candidate"], memory["candidate"], correctness_passed, last["candidate"])
+        if starved:
+            note = "benchmark budget exhausted; speedup uses the samples collected before exhaustion"
+            baseline.error = note
+            candidate.error = note
         ratios = self._bootstrap_speedups(baseline.samples_ms, candidate.samples_ms)
         speedup = baseline.median_ms / candidate.median_ms if candidate.median_ms else 0.0
         return BenchmarkComparison(baseline, candidate, speedup, _percentile(ratios, 0.025), _percentile(ratios, 0.975))
