@@ -167,7 +167,15 @@ The thirty distinct fixtures under `benchmarks/tasks/` cover algorithm, loop-inv
 
 Each case keeps source, tests, benchmark, and metadata together so a result can be reproduced from a clean checkout.
 
-For projects beyond the included fixtures, see [`docs/real_project_cases.md`](docs/real_project_cases.md) for three concrete targets: `python/pyperformance`, `psf/pyperf`, and `psf/requests`. These recipes keep external repositories and measured results separate from the bundled Mock-provider suite.
+For projects beyond the included fixtures, these three real repositories are documented integration targets:
+
+| Project | Correctness entrypoint | Performance workload |
+| --- | --- | --- |
+| [`python/pyperformance`](https://github.com/python/pyperformance) | project test command | `pyperformance` benchmark adapter |
+| [`psf/pyperf`](https://github.com/psf/pyperf) | project test command | calibrated `pyperf` adapter |
+| [`psf/requests`](https://github.com/psf/requests) | `python -m pytest -q` | local no-network request-preparation adapter |
+
+The exact commands and adapter contract are in [`docs/real_project_cases.md`](docs/real_project_cases.md). External repositories and real-provider measurements stay separate from the bundled Mock-provider suite.
 
 Run the budget-matched suite across single-agent, best-of-N, debate, fixed-scheduler, difficulty-router, and adaptive-Delphi conditions:
 
@@ -251,7 +259,9 @@ GitHub Actions runs the same lint, type-check, and coverage-gated test commands.
 
 ## Safety and limitations
 
-Candidates run in independent temporary copies. `LocalSandbox` is convenient for development but executes commands on the host and must not be used for untrusted code. `DockerSandbox` provides the intended network-disabled, CPU/memory-limited execution path when Docker is available; production deployments should further restrict mounts and use read-only images.
+Candidates run in independent temporary copies. `LocalSandbox` executes commands on the host and terminates the launched process tree when a command times out. `DockerSandbox` provides the network-disabled, CPU/memory-limited execution path when Docker is available.
+
+Before copying an accepted patch back, DelphiOpt checks that every target file still matches the snapshot used for candidate evaluation. A file edited during the run is left untouched, and a partial multi-file copy failure restores the original bytes.
 
 The runtime uses an explainable VOI policy and a deterministic Mock Provider for tests. Arbitrary transformations require a context-correct unified diff from the configured model. `DynamicProfiler` runs Python benchmark scripts under `cProfile` plus `tracemalloc`, records peak memory, and classifies CPU, memory, I/O, and lock-related hotspots; benchmark output can add measured memory values.
 

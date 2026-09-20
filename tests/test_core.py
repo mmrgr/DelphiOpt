@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 import urllib.error
 from pathlib import Path
 from typing import Self
@@ -268,6 +269,20 @@ def test_benchmark_compare_interleaves_and_bootstraps(tmp_path: Path) -> None:
     assert budget.usage.benchmark_runs == 8
 
 
+def test_benchmark_compare_runs_configured_warmups_for_both_variants(tmp_path: Path) -> None:
+    baseline = tmp_path / "baseline"
+    candidate = tmp_path / "candidate"
+    baseline.mkdir()
+    candidate.mkdir()
+    for folder in (baseline, candidate):
+        (folder / "benchmark.py").write_text("import json; print(json.dumps({'runtime_ms': 1.0}))", encoding="utf-8")
+    budget = BudgetManager(BudgetLimits(max_benchmark_runs=20, max_tool_calls=20))
+    result = BenchmarkEngine(warmups=2, repetitions=1, bootstrap_resamples=20).compare("python benchmark.py", baseline, candidate, budget)
+    assert result.baseline.repetitions == 1
+    assert result.candidate.repetitions == 1
+    assert budget.usage.benchmark_runs == 6
+
+
 def test_benchmark_counts_warmups_and_repetitions(tmp_path: Path) -> None:
     (tmp_path / "benchmark.py").write_text("import json; print(json.dumps({'runtime_ms': 1.0}))", encoding="utf-8")
     budget = BudgetManager(BudgetLimits(max_benchmark_runs=5, max_tool_calls=5))
@@ -433,3 +448,16 @@ def test_stopping_and_convergence_policies() -> None:
 def test_sandbox_factory() -> None:
     assert isinstance(sandbox_from_config({"type": "local"}), LocalSandbox)
     assert isinstance(sandbox_from_config({"type": "docker"}), DockerSandbox)
+
+
+def test_local_sandbox_timeout_kills_child_process_tree(tmp_path: Path) -> None:
+    (tmp_path / "child.py").write_text(
+        "import time\nfrom pathlib import Path\ntime.sleep(0.5)\nPath('orphan-marker').write_text('survived')\n", encoding="utf-8"
+    )
+    (tmp_path / "parent.py").write_text(
+        "import subprocess, sys, time\nsubprocess.Popen([sys.executable, 'child.py'])\ntime.sleep(2)\n", encoding="utf-8"
+    )
+    result = LocalSandbox().run("python parent.py", tmp_path, 0.2)
+    assert result.timed_out
+    time.sleep(0.7)
+    assert not (tmp_path / "orphan-marker").exists()

@@ -12,7 +12,7 @@
 
 ## Verification
 
-- `51 passed`
+- `53 passed`
 - Ruff and Python compilation passed.
 - Desktop source and packaged EXE smoke tests passed.
 - Custom local OpenAI-compatible endpoint test passed.
@@ -20,6 +20,8 @@
 - Resumable checkpoints, `delphiopt resume`, provider capability checks, bounded concurrent probes, and interactive patch confirmation are included.
 - Best-of-N runs issue independent expert requests through a bounded concurrent batch (`scheduler.max_parallel`, default 4).
 - Project auto-detection now covers common test layouts and benchmark adapters; accepted patches verify the source has not changed during evaluation and revert partial sync failures.
+- Benchmark comparisons now honor the configured warmup count for both baseline and candidate workspaces.
+- Local command timeouts terminate the launched process tree; a regression test checks that child processes do not survive the timeout.
 - The benchmark suite now contains 30 near-real tasks and a budget-matched runner for single, best-of-N, debate, fixed, difficulty, and adaptive Delphi conditions.
 - Dynamic profiling now records peak `tracemalloc` memory alongside cProfile hotspot evidence.
 - Concurrency-limit, source-change, and rollback coverage passed.

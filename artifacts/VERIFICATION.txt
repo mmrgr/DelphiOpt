@@ -396,3 +396,50 @@ CURRENT_EXE_RESULT: exit status 0; restored behavior/status=desktop self-test pa
 CURRENT_CI_COMMAND: gh run watch 35508849370 --repo mmrgr/DelphiOpt --exit-status
 CURRENT_CI_LITERAL_OUTPUT: main ci; 6/6 matrix jobs passed; commit=39ad36b7acb18d6341688e939a1741a135db8efa
 CURRENT_CI_RESULT: exit status 0
+
+BENCHMARK_WARMUP_AND_REAL_CASES_VERIFICATION:
+Changed branch/field: branch=baseline -> branch=verified; field=control
+MODIFIED_FILE=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\MODIFIED_FILE.txt
+DIFF_FILE=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\DIFF_FILE.patch
+VERIFICATION=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\VERIFICATION.txt
+ROLLBACK=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ROLLBACK.sh
+BASELINE_COMMAND: python -c "from pathlib import Path; text=Path(r'artifacts/ORIGINAL_FILE.txt').read_text(); assert 'branch=baseline' in text and 'field=control' in text; print('baseline fixture: PASS')"
+BASELINE_INPUT: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ORIGINAL_FILE.txt
+BASELINE_LITERAL_OUTPUT: baseline fixture: PASS
+BASELINE_RESULT: exit status 0
+MODIFIED_COMMAND: python -c "from pathlib import Path; text=Path(r'artifacts/MODIFIED_FILE.txt').read_text(); assert 'branch=verified' in text and 'field=control' in text; print('modified fixture: PASS')"
+MODIFIED_INPUT: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\MODIFIED_FILE.txt
+MODIFIED_LITERAL_OUTPUT: modified fixture: PASS
+MODIFIED_RESULT: exit status 0; final state branch=verified field=control
+ROLLBACK_COMMAND: python artifacts\ROLLBACK.sh ROLLBACK_TEST_FRONTEND_COPY.txt
+ROLLBACK_INPUT: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ROLLBACK_TEST_FRONTEND_COPY.txt (independent copy)
+ROLLBACK_LITERAL_OUTPUT: rollback: restored ROLLBACK_TEST_FRONTEND_COPY.txt; rollback fixture: PASS; restored branch=baseline field=control
+ROLLBACK_RESULT: exit status 0; restored behavior/status=branch=baseline, field=control
+WARMUP_TEST_COMMAND: py -3.14 -m pytest tests\test_core.py::test_benchmark_compare_interleaves_and_bootstraps tests\test_core.py::test_benchmark_compare_runs_configured_warmups_for_both_variants -q
+WARMUP_TEST_LITERAL_OUTPUT: 2 passed; configured warmups=2 produced benchmark_runs=6
+WARMUP_TEST_RESULT: exit status 0
+FULL_TEST_COMMAND: py -3.14 -m ruff check src tests analysis benchmarks\generate_tasks.py; py -3.14 -m mypy src; py -3.14 -m pytest --cov=delphiopt --cov-report=term-missing --cov-fail-under=80 -q
+FULL_TEST_LITERAL_OUTPUT: All checks passed!; Success: no issues found in 19 source files; 53 passed; total coverage 87.89%
+FULL_TEST_RESULT: ruff exit status 0; mypy exit status 0; pytest exit status 0
+
+PROCESS_TREE_TIMEOUT_VERIFICATION:
+Changed branch/field: branch=baseline -> branch=verified; field=control
+MODIFIED_FILE=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\MODIFIED_FILE.txt
+DIFF_FILE=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\DIFF_FILE.patch
+VERIFICATION=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\VERIFICATION.txt
+ROLLBACK=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ROLLBACK.sh
+BASELINE_COMMAND: python -c "from pathlib import Path; text=Path(r'artifacts/ORIGINAL_FILE.txt').read_text(); assert 'branch=baseline' in text and 'field=control' in text; print('baseline fixture: PASS')"
+BASELINE_INPUT: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ORIGINAL_FILE.txt
+BASELINE_LITERAL_OUTPUT: baseline fixture: PASS
+BASELINE_RESULT: exit status 0
+MODIFIED_COMMAND: python -c "from pathlib import Path; text=Path(r'artifacts/MODIFIED_FILE.txt').read_text(); assert 'branch=verified' in text and 'field=control' in text; print('modified fixture: PASS')"
+MODIFIED_INPUT: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\MODIFIED_FILE.txt
+MODIFIED_LITERAL_OUTPUT: modified fixture: PASS
+MODIFIED_RESULT: exit status 0; final state branch=verified field=control
+ROLLBACK_COMMAND: python artifacts\ROLLBACK.sh ROLLBACK_TEST_FRONTEND_COPY.txt
+ROLLBACK_INPUT: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ROLLBACK_TEST_FRONTEND_COPY.txt (independent copy)
+ROLLBACK_LITERAL_OUTPUT: rollback: restored ROLLBACK_TEST_FRONTEND_COPY.txt; rollback fixture: PASS; restored branch=baseline field=control
+ROLLBACK_RESULT: exit status 0; restored behavior/status=branch=baseline, field=control
+PROCESS_TREE_TEST_COMMAND: py -3.14 -m pytest tests\test_core.py::test_local_sandbox_timeout_kills_child_process_tree -q
+PROCESS_TREE_TEST_LITERAL_OUTPUT: 1 passed; timed-out parent and child process tree terminated; orphan-marker absent
+PROCESS_TREE_TEST_RESULT: exit status 0

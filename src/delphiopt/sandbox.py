@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import signal
 import subprocess
 import time
 from dataclasses import dataclass
@@ -32,21 +33,30 @@ class LocalSandbox:
         started = time.perf_counter()
         display = command if isinstance(command, str) else subprocess.list2cmdline(command)
         try:
-            completed = subprocess.run(
+            process = subprocess.Popen(
                 command,
                 cwd=str(cwd),
                 shell=shell,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                timeout=timeout_seconds,
                 env=os.environ.copy(),
-                check=False,
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
+                start_new_session=os.name != "nt",
             )
-            return CommandResult(display, completed.returncode, completed.stdout, completed.stderr, time.perf_counter() - started)
-        except subprocess.TimeoutExpired as exc:
-            stdout = exc.stdout.decode(errors="replace") if isinstance(exc.stdout, bytes) else (exc.stdout or "")
-            stderr = exc.stderr.decode(errors="replace") if isinstance(exc.stderr, bytes) else (exc.stderr or "")
-            return CommandResult(display, -1, stdout, stderr, time.perf_counter() - started, True)
+            try:
+                stdout, stderr = process.communicate(timeout=timeout_seconds)
+            except subprocess.TimeoutExpired:
+                if os.name == "nt":
+                    subprocess.run(["taskkill", "/F", "/T", "/PID", str(process.pid)], capture_output=True, check=False)
+                else:
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)  # type: ignore[attr-defined]
+                    except ProcessLookupError:
+                        pass
+                stdout, stderr = process.communicate()
+                return CommandResult(display, -1, stdout, stderr, time.perf_counter() - started, True)
+            return CommandResult(display, process.returncode, stdout, stderr, time.perf_counter() - started)
         except OSError as exc:
             return CommandResult(display, -1, "", str(exc), time.perf_counter() - started)
 

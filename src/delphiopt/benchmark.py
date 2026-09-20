@@ -86,7 +86,7 @@ class BenchmarkEngine:
         """Randomly interleave baseline and candidate runs, then bootstrap speedup."""
         rng = random.Random(self.seed)
         for cwd in (baseline_cwd, candidate_cwd):
-            for _ in range(min(1, self.warmups)):
+            for _ in range(self.warmups):
                 warmup = self._run_once(command, cwd, budget)
                 if warmup is None or not warmup.ok:
                     failed = self._budget_failed(command, correctness_passed) if warmup is None else self._failed(command, warmup, False)
