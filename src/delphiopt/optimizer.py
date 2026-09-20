@@ -19,6 +19,7 @@ class PatchResult:
     files: list[str]
     diff: str
     explanation: str
+    originals: dict[str, bytes] = field(default_factory=dict)
 
 
 class ImplementationAgent:
@@ -30,6 +31,7 @@ class ImplementationAgent:
             return self._apply_patch(root, proposal)
         before: dict[str, str] = {}
         after: dict[str, str] = {}
+        originals: dict[str, bytes] = {}
         for path in root.rglob("*.py"):
             if any(part in {".git", ".delphiopt", "__pycache__"} for part in path.parts):
                 continue
@@ -37,6 +39,7 @@ class ImplementationAgent:
             before[str(path.relative_to(root))] = text
             changed = self._transform(text, proposal)
             if changed != text:
+                originals[str(path.relative_to(root))] = path.read_bytes()
                 path.write_text(changed, encoding="utf-8")
                 after[str(path.relative_to(root))] = changed
         lines: list[str] = []
@@ -44,10 +47,11 @@ class ImplementationAgent:
             lines.extend(
                 difflib.unified_diff(before[name].splitlines(True), changed.splitlines(True), fromfile=f"a/{name}", tofile=f"b/{name}")
             )
-        return PatchResult(bool(after), list(after), "".join(lines), self._explanation(proposal, after))
+        return PatchResult(bool(after), list(after), "".join(lines), self._explanation(proposal, after), originals)
 
     def _apply_patch(self, root: Path, proposal: Proposal) -> PatchResult:
         modified: dict[str, str] = {}
+        originals: dict[str, bytes] = {}
         lines = proposal.patch.splitlines(keepends=True)
         index = 0
         while index < len(lines):
@@ -62,6 +66,9 @@ class ImplementationAgent:
             if root.resolve() not in target.parents or not target.is_file():
                 raise ValueError(f"patch target is outside project or missing: {relative}")
             original = target.read_text(encoding="utf-8")
+            if relative in modified:
+                raise ValueError(f"duplicate patch target: {relative}")
+            originals[relative] = target.read_bytes()
             source = original.splitlines(keepends=True)
             output: list[str] = []
             source_index = 0
@@ -102,7 +109,7 @@ class ImplementationAgent:
             return PatchResult(False, [], proposal.patch, "Unified diff did not contain a supported file change.")
         for relative, text in modified.items():
             (root / relative).write_text(text, encoding="utf-8")
-        return PatchResult(True, list(modified), proposal.patch, self._explanation(proposal, modified))
+        return PatchResult(True, list(modified), proposal.patch, self._explanation(proposal, modified), originals)
 
     def _transform(self, text: str, proposal: Proposal) -> str:
         key = proposal.transformation.lower()
@@ -117,9 +124,17 @@ class ImplementationAgent:
             return f"Applied {proposal.transformation} to {', '.join(files)}."
         return "No supported source pattern matched this proposal; candidate was retained for evidence only."
 
-    def sync_accepted_files(self, source: str | Path, destination: str | Path, files: list[str]) -> None:
+    def sync_accepted_files(
+        self, source: str | Path, destination: str | Path, files: list[str], *, expected_originals: dict[str, bytes]
+    ) -> None:
         source_root, destination_root = Path(source), Path(destination)
         backups: dict[Path, bytes | None] = {}
+        # The user may edit the project while tests and benchmarks run. Refuse
+        # to replace those edits with an older isolated-workspace snapshot.
+        for relative in files:
+            target = destination_root / relative
+            if relative not in expected_originals or not target.is_file() or target.read_bytes() != expected_originals[relative]:
+                raise ValueError(f"source changed during optimization: {relative}")
         try:
             for relative in files:
                 target = destination_root / relative

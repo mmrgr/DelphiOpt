@@ -467,7 +467,16 @@ class OptimizationRuntime:
                     ):
                         apply_changes = write_changes and (confirm is None or confirm(candidate, patch.diff, speedup))
                         if apply_changes:
-                            implementer.sync_accepted_files(candidate_project, project_path, patch.files)
+                            try:
+                                implementer.sync_accepted_files(
+                                    candidate_project, project_path, patch.files, expected_originals=patch.originals
+                                )
+                            except ValueError as exc:
+                                reason = str(exc)
+                                trace.record("candidate_decision", proposal_id=candidate.id, decision="rejected", reason=reason)
+                                evidence_log.append(f"candidate={candidate.id} apply=rejected reason={reason}")
+                                stop_reason = reason
+                                continue
                         best_ms, winning = result.median_ms, candidate.id
                         status = "accepted" if apply_changes else "accepted_dry_run"
                         stop_reason = (

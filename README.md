@@ -71,6 +71,19 @@ delphiopt optimize examples/demo_project --confirm
 
 The demo contains an intentionally slow list-membership hot loop. DelphiOpt runs baseline tests and benchmarks, elicits five expert proposals, ranks candidates, applies a set-membership patch in a temporary copy, reruns correctness and repeated performance tests, and copies the patch back only after the evidence gate passes.
 
+### One-minute terminal demo
+
+```text
+$ delphiopt optimize examples/demo_project
+status: accepted
+correctness: true
+baseline_ms: <measured>  ->  best_ms: <measured>
+speedup: <verified by interleaved repeated benchmark samples>
+diff: .delphiopt/runs/<RUN_ID>/patches/<PROPOSAL_ID>.diff
+```
+
+The default project detector uses `tests.py`, a `tests/` package, `pyproject.toml`, `setup.cfg`, or `tox.ini` to choose a test command. It also discovers `benchmark.py`, `benchmarks/benchmark.py`, or the first `benchmarks/benchmark_*.py`; a project-specific command in `delphiopt.yaml` always takes precedence.
+
 Useful commands:
 
 ```powershell
@@ -202,6 +215,8 @@ The **高级设置** page provides editable controls for:
 * seed, three economy/balanced/deep presets, raw YAML editing for model/expert/provider/candidate-weight fields, configuration validation, project preflight, persistent project/config preferences, console copy/clear, automatic report opening, and run-folder access.
 
 The **模型接入** tab can add OpenAI, OpenAI-compatible, Anthropic, Gemini, or mock models with independent endpoint URLs, model identifiers, API-key environment variables, timeouts, and token prices. API keys entered in the desktop form remain only in the current process. Each model can be tested with a real request before use. Drag-free **上移/下移** controls define priority order; when priority and failover are enabled, the runtime tries models in that order until one returns a valid proposal.
+
+Best-of-N expert requests use bounded concurrency controlled by `scheduler.max_parallel` (default `4`), so independent proposals reduce wall-clock latency without removing the global budget ledger.
 
 Run from source:
 

@@ -16,7 +16,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "memory": {"persona": "Memory Expert", "model_pool": ["cheap"]},
         "skeptic": {"persona": "Skeptic Agent", "model_pool": ["strong"]},
     },
-    "scheduler": {"strategy": "adaptive_voi", "base_tokens": 900, "tool_budget": 2},
+    "scheduler": {"strategy": "adaptive_voi", "base_tokens": 900, "tool_budget": 2, "max_parallel": 4},
     "collaboration": {"mode": "delphi"},
     "seed": 0,
     "budget": {
@@ -96,6 +96,8 @@ def validate_config(config: dict[str, Any]) -> None:
                 raise ValueError(f"{section}.{name} must be positive")
     if int(config.get("benchmark", {}).get("warmups", 0)) < 0:
         raise ValueError("benchmark.warmups cannot be negative")
+    if int(config.get("scheduler", {}).get("max_parallel", 1)) <= 0:
+        raise ValueError("scheduler.max_parallel must be positive")
     if not config.get("models") or not config.get("experts"):
         raise ValueError("models and experts must not be empty")
     model_names = set(config["models"])

@@ -188,9 +188,22 @@ def _effective_config(project: Path, explicit: str | None) -> dict[str, Any]:
 
 
 def _detect_project_commands(project: Path) -> dict[str, str]:
+    if project.joinpath("tests.py").exists():
+        test_command = "python tests.py"
+    elif project.joinpath("tests").is_dir() or any(project.joinpath(name).exists() for name in ("pyproject.toml", "setup.cfg", "tox.ini")):
+        test_command = "pytest -q"
+    else:
+        test_command = "python -m unittest discover -q"
+    if project.joinpath("benchmark.py").exists():
+        benchmark_command = "python benchmark.py"
+    elif project.joinpath("benchmarks", "benchmark.py").exists():
+        benchmark_command = "python benchmarks/benchmark.py"
+    else:
+        benchmark_files = sorted(project.glob("benchmarks/benchmark_*.py"))
+        benchmark_command = f"python {benchmark_files[0].relative_to(project).as_posix()}" if benchmark_files else "python benchmark.py"
     return {
-        "test_command": "python tests.py" if project.joinpath("tests.py").exists() else "pytest -q",
-        "benchmark_command": "python benchmark.py",
+        "test_command": test_command,
+        "benchmark_command": benchmark_command,
     }
 
 

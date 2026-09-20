@@ -323,6 +323,62 @@ def test_implementation_agent_applies_validated_unified_diff(tmp_path: Path) -> 
     assert (tmp_path / "value.py").read_text(encoding="utf-8") == "VALUE = 2\n"
 
 
+def test_verified_patch_does_not_overwrite_concurrent_user_edit(tmp_path: Path) -> None:
+    source = tmp_path / "candidate"
+    destination = tmp_path / "project"
+    source.mkdir()
+    destination.mkdir()
+    for directory in (source, destination):
+        (directory / "value.py").write_text("VALUE = 1\n", encoding="utf-8")
+    item = proposal("replace constant", 1.1)
+    item.patch = "--- a/value.py\n+++ b/value.py\n@@ -1 +1 @@\n-VALUE = 1\n+VALUE = 2\n"
+    patch = ImplementationAgent().apply(source, item)
+    (destination / "value.py").write_text("VALUE = 'user edit'\n", encoding="utf-8")
+    try:
+        ImplementationAgent().sync_accepted_files(source, destination, patch.files, expected_originals=patch.originals)
+    except ValueError as exc:
+        assert "source changed during optimization" in str(exc)
+    else:
+        raise AssertionError("concurrent user edit must not be overwritten")
+    assert (destination / "value.py").read_text(encoding="utf-8") == "VALUE = 'user edit'\n"
+
+
+def test_verified_patch_sync_reverts_partial_write_on_failure(tmp_path: Path, monkeypatch) -> None:
+    import delphiopt.optimizer as optimizer_module
+
+    source = tmp_path / "candidate"
+    destination = tmp_path / "project"
+    source.mkdir()
+    destination.mkdir()
+    for name in ("first.py", "second.py"):
+        (source / name).write_text("VALUE = 2\n", encoding="utf-8")
+        (destination / name).write_text("VALUE = 1\n", encoding="utf-8")
+    originals = {name: (destination / name).read_bytes() for name in ("first.py", "second.py")}
+    original_replace = optimizer_module.os.replace
+    calls = 0
+
+    def fail_second(source_path: str, destination_path: str | Path) -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise OSError("simulated sync failure")
+        original_replace(source_path, destination_path)
+
+    monkeypatch.setattr(optimizer_module.os, "replace", fail_second)
+    try:
+        ImplementationAgent().sync_accepted_files(
+            source,
+            destination,
+            ["first.py", "second.py"],
+            expected_originals=originals,
+        )
+    except OSError as exc:
+        assert "simulated sync failure" in str(exc)
+    else:
+        raise AssertionError("sync failure must propagate")
+    assert all((destination / name).read_bytes() == originals[name] for name in ("first.py", "second.py"))
+
+
 def test_trace_is_jsonl_and_readable(tmp_path: Path) -> None:
     tracer = RunTracer(tmp_path, "abc")
     tracer.record("example", value=1)

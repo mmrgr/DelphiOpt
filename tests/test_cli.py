@@ -4,7 +4,7 @@ import json
 import shutil
 from pathlib import Path
 
-from delphiopt.cli import _effective_config, main
+from delphiopt.cli import _detect_project_commands, _effective_config, main
 
 
 def test_cli_lists_builtin_modes(capsys) -> None:
@@ -36,6 +36,15 @@ def test_explicit_config_preserves_project_commands(tmp_path: Path) -> None:
     config = _effective_config(tmp_path, str(explicit))
     assert config["project"]["test_command"] == "python tests.py"
     assert config["collaboration"]["mode"] == "single"
+
+
+def test_cli_detects_common_project_layout_and_benchmark_adapter(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text("[build-system]\nrequires=[]\n", encoding="utf-8")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "benchmarks").mkdir()
+    (tmp_path / "benchmarks" / "benchmark_hot_loop.py").write_text("print('{}')\n", encoding="utf-8")
+    commands = _detect_project_commands(tmp_path)
+    assert commands == {"test_command": "pytest -q", "benchmark_command": "python benchmarks/benchmark_hot_loop.py"}
 
 
 def test_cli_optimize_inspect_report_and_benchmark(tmp_path: Path, capsys) -> None:
