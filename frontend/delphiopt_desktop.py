@@ -474,8 +474,10 @@ class DelphiOptDesktop(tk.Tk):
     def _build_model_settings(self, parent: tk.Frame) -> None:
         container = tk.Frame(parent, bg=PANEL)
         container.pack(fill="both", expand=True, padx=18, pady=16)
-        container.grid_columnconfigure(0, weight=3)
-        container.grid_columnconfigure(1, weight=2)
+        # Keep the priority table wide enough to show every identifying field;
+        # the editor receives the remaining space and remains responsive.
+        container.grid_columnconfigure(0, weight=2, minsize=410)
+        container.grid_columnconfigure(1, weight=3, minsize=460)
         container.grid_rowconfigure(1, weight=1)
 
         self._label(container, "模型优先级（从上到下）", color=TEXT, bold=True).grid(row=0, column=0, sticky="w", pady=(0, 8))
@@ -490,8 +492,8 @@ class DelphiOptDesktop(tk.Tk):
         columns = ("priority", "alias", "protocol", "model")
         self.model_tree = ttk.Treeview(list_panel, columns=columns, show="headings", selectmode="browse", height=13)
         for column, title, width in (
-            ("priority", "优先级", 65), ("alias", "配置名称", 105),
-            ("protocol", "接口协议", 110), ("model", "模型名称", 150),
+            ("priority", "优先级", 55), ("alias", "配置名称", 95),
+            ("protocol", "接口协议", 105), ("model", "模型名称", 135),
         ):
             self.model_tree.heading(column, text=title)
             self.model_tree.column(column, width=width, anchor="w")
@@ -1284,6 +1286,9 @@ def ui_smoke_test(output: Path) -> int:
     app = DelphiOptDesktop()
     app.update_idletasks()
     settings = app.current_settings()
+    app.show_page("高级设置")
+    app.settings_notebook.select(4)
+    app.update_idletasks()
     mock_model_code, _mock_model_output = app.backend.test_model_connection(
         {"provider": "mock", "model": "mock-smoke"}
     )
@@ -1311,11 +1316,14 @@ def ui_smoke_test(output: Path) -> int:
             "模型连接测试可用": callable(app.test_model_connection),
             "模型优先级可用": callable(app.move_model),
             "模型配置数": len(app.model_profiles),
+            "模型优先级表宽度": app.model_tree.winfo_width(),
+            "模型列表字段完整": app.model_tree.winfo_width() >= 390,
             "模拟连接测试通过": mock_model_code == 0,
             "优化任务布局列数": app.optimize_layout_columns,
             "高分屏缩放": float(app.tk.call("tk", "scaling")),
         },
     }
+    result["status"] = "通过" if mock_model_code == 0 and result["功能检查"]["模型列表字段完整"] else "失败"
     app.destroy()
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, indent=2), encoding="utf-8")
