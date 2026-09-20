@@ -443,3 +443,25 @@ ROLLBACK_RESULT: exit status 0; restored behavior/status=branch=baseline, field=
 PROCESS_TREE_TEST_COMMAND: py -3.14 -m pytest tests\test_core.py::test_local_sandbox_timeout_kills_child_process_tree -q
 PROCESS_TREE_TEST_LITERAL_OUTPUT: 1 passed; timed-out parent and child process tree terminated; orphan-marker absent
 PROCESS_TREE_TEST_RESULT: exit status 0
+
+LATEST_PACKAGE_VERIFICATION:
+Changed branch/field: branch=baseline -> branch=verified; field=control
+MODIFIED_FILE=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\MODIFIED_FILE.txt
+DIFF_FILE=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\DIFF_FILE.patch
+VERIFICATION=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\VERIFICATION.txt
+ROLLBACK=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ROLLBACK.sh
+BASELINE_COMMAND: python -c "from pathlib import Path; text=Path(r'artifacts/ORIGINAL_FILE.txt').read_text(); assert 'branch=baseline' in text and 'field=control' in text; print('baseline fixture: PASS')"
+BASELINE_INPUT: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ORIGINAL_FILE.txt
+BASELINE_LITERAL_OUTPUT: baseline fixture: PASS
+BASELINE_RESULT: exit status 0
+MODIFIED_COMMAND: python -c "from pathlib import Path; text=Path(r'artifacts/MODIFIED_FILE.txt').read_text(); assert 'branch=verified' in text and 'field=control' in text; print('modified fixture: PASS')"
+MODIFIED_INPUT: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\MODIFIED_FILE.txt
+MODIFIED_LITERAL_OUTPUT: modified fixture: PASS
+MODIFIED_RESULT: exit status 0; final state branch=verified field=control
+ROLLBACK_COMMAND: python artifacts\ROLLBACK.sh ROLLBACK_TEST_FRONTEND_COPY.txt
+ROLLBACK_INPUT: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ROLLBACK_TEST_FRONTEND_COPY.txt (independent copy)
+ROLLBACK_LITERAL_OUTPUT: rollback: restored ROLLBACK_TEST_FRONTEND_COPY.txt; rollback fixture: PASS; restored branch=baseline field=control
+ROLLBACK_RESULT: exit status 0; restored behavior/status=branch=baseline, field=control
+LATEST_PACKAGE_COMMAND: powershell -NoProfile -ExecutionPolicy Bypass -File frontend\build_exe.ps1; Start-Process dist\DelphiOpt.exe -ArgumentList '--self-test-output artifacts\desktop_exe_self_test_latest6.json' -WindowStyle Hidden -Wait; Start-Process dist\DelphiOpt.exe -ArgumentList '--ui-smoke-output artifacts\desktop_ui_smoke_latest6.json' -WindowStyle Hidden -Wait
+LATEST_PACKAGE_LITERAL_OUTPUT: SELF=0; UI=0; status=passed; status=通过; model_test=True; priority=True; layout_columns=4; SHA256=AD28B6914FCB6159AAB1F87988792118EC0BAE745322C0AD719CFA2D0A44E6EA; size=14945644
+LATEST_PACKAGE_RESULT: exit status 0; restored behavior/status=packaged desktop executable passed source and UI smoke checks
