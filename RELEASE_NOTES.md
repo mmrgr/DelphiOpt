@@ -25,4 +25,4 @@
 - The benchmark suite now contains 30 near-real tasks and a budget-matched runner for single, best-of-N, debate, fixed, difficulty, and adaptive Delphi conditions.
 - Dynamic profiling now records peak `tracemalloc` memory alongside cProfile hotspot evidence.
 - Concurrency-limit, source-change, and rollback coverage passed.
-- EXE SHA256: `AD28B6914FCB6159AAB1F87988792118EC0BAE745322C0AD719CFA2D0A44E6EA`
+- EXE SHA256: `B53362B719407D97E20DF242DF6E433BF6032CA5CE08F8E4CAB5E3DA632BD355`
