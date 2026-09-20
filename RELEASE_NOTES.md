@@ -12,7 +12,7 @@
 
 ## Verification
 
-- `47 passed`
+- `51 passed`
 - Ruff and Python compilation passed.
 - Desktop source and packaged EXE smoke tests passed.
 - Custom local OpenAI-compatible endpoint test passed.
@@ -22,5 +22,5 @@
 - Project auto-detection now covers common test layouts and benchmark adapters; accepted patches verify the source has not changed during evaluation and revert partial sync failures.
 - The benchmark suite now contains 30 near-real tasks and a budget-matched runner for single, best-of-N, debate, fixed, difficulty, and adaptive Delphi conditions.
 - Dynamic profiling now records peak `tracemalloc` memory alongside cProfile hotspot evidence.
-- `51 passed`; concurrency-limit, source-change, and rollback coverage passed.
+- Concurrency-limit, source-change, and rollback coverage passed.
 - EXE SHA256: `05726BEC5763DCA295D8ACC8FDA506477233DB0EFEA65CBD327D053BB77D56C5`
