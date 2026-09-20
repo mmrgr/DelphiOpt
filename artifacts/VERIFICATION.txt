@@ -365,3 +365,34 @@ GITHUB_CI_RESULT: exit status 0
 CURRENT_EXE_BUILD_COMMAND: powershell -NoProfile -ExecutionPolicy Bypass -File frontend\build_exe.ps1; Start-Process dist\DelphiOpt.exe -ArgumentList '--self-test-output artifacts\desktop_exe_self_test_latest4.json' -WindowStyle Hidden -Wait; Start-Process dist\DelphiOpt.exe -ArgumentList '--ui-smoke-output artifacts\desktop_ui_smoke_latest4.json' -WindowStyle Hidden -Wait
 CURRENT_EXE_BUILD_LITERAL_OUTPUT: SELF=0; UI=0; status=passed; status=通过; layout_columns=4; model_test=True; priority=True; SHA256=E15FC522D6A55777D71790822AC22C77E31619C7F0075317612B8FEC454420EF; size=14937512
 CURRENT_EXE_BUILD_RESULT: exit status 0; restored behavior/status=desktop self-test passed and all audited controls available
+
+PATCH_SYNC_AND_PROJECT_DETECTION_VERIFICATION:
+Changed branch/field: branch=baseline -> branch=verified; field=control
+MODIFIED_FILE=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\MODIFIED_FILE.txt
+DIFF_FILE=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\DIFF_FILE.patch
+VERIFICATION=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\VERIFICATION.txt
+ROLLBACK=C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ROLLBACK.sh
+BASELINE_COMMAND: python -c "from pathlib import Path; text=Path(r'artifacts/ORIGINAL_FILE.txt').read_text(); assert 'branch=baseline' in text and 'field=control' in text; print('baseline fixture: PASS')"
+BASELINE_INPUT: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ORIGINAL_FILE.txt
+BASELINE_LITERAL_OUTPUT: baseline fixture: PASS
+BASELINE_RESULT: exit status 0
+MODIFIED_COMMAND: python -c "from pathlib import Path; text=Path(r'artifacts/MODIFIED_FILE.txt').read_text(); assert 'branch=verified' in text and 'field=control' in text; print('modified fixture: PASS')"
+MODIFIED_INPUT: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\MODIFIED_FILE.txt
+MODIFIED_LITERAL_OUTPUT: modified fixture: PASS
+MODIFIED_RESULT: exit status 0; final state branch=verified field=control
+ROLLBACK_COMMAND: python artifacts\ROLLBACK.sh ROLLBACK_TEST_FRONTEND_COPY.txt
+ROLLBACK_INPUT: C:\Users\mmrgr\Documents\sjz\DelphiOpt\artifacts\ROLLBACK_TEST_FRONTEND_COPY.txt (independent copy)
+ROLLBACK_LITERAL_OUTPUT: rollback: restored ROLLBACK_TEST_FRONTEND_COPY.txt; rollback fixture: PASS; restored branch=baseline field=control
+ROLLBACK_RESULT: exit status 0; restored behavior/status=branch=baseline, field=control
+PATCH_SYNC_TEST_COMMAND: python -m pytest tests\test_core.py::test_verified_patch_does_not_overwrite_concurrent_user_edit tests\test_core.py::test_verified_patch_sync_reverts_partial_write_on_failure tests\test_cli.py::test_cli_detects_common_project_layout_and_benchmark_adapter -q
+PATCH_SYNC_TEST_LITERAL_OUTPUT: 3 passed; source-change guard, partial-write rollback, and common-layout detection passed
+PATCH_SYNC_TEST_RESULT: exit status 0
+FULL_TEST_COMMAND: py -3.14 -m ruff check src tests analysis benchmarks\generate_tasks.py; py -3.14 -m mypy src; py -3.14 -m pytest --cov=delphiopt --cov-report=term-missing --cov-fail-under=80 -q
+FULL_TEST_LITERAL_OUTPUT: All checks passed!; Success: no issues found in 19 source files; 51 passed; total coverage 88.06%
+FULL_TEST_RESULT: ruff exit status 0; mypy exit status 0; pytest exit status 0
+CURRENT_EXE_COMMAND: powershell -NoProfile -ExecutionPolicy Bypass -File frontend\build_exe.ps1; Start-Process dist\DelphiOpt.exe -ArgumentList '--self-test-output artifacts\desktop_exe_self_test_latest5.json' -WindowStyle Hidden -Wait; Start-Process dist\DelphiOpt.exe -ArgumentList '--ui-smoke-output artifacts\desktop_ui_smoke_latest5.json' -WindowStyle Hidden -Wait
+CURRENT_EXE_LITERAL_OUTPUT: SELF=0; UI=0; status=passed; status=通过; layout_columns=4; model_test=True; priority=True; SHA256=05726BEC5763DCA295D8ACC8FDA506477233DB0EFEA65CBD327D053BB77D56C5; size=14945941
+CURRENT_EXE_RESULT: exit status 0; restored behavior/status=desktop self-test passed and Chinese UI controls available
+CURRENT_CI_COMMAND: gh run watch 35508849370 --repo mmrgr/DelphiOpt --exit-status
+CURRENT_CI_LITERAL_OUTPUT: main ci; 6/6 matrix jobs passed; commit=39ad36b7acb18d6341688e939a1741a135db8efa
+CURRENT_CI_RESULT: exit status 0

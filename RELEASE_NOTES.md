@@ -19,7 +19,8 @@
 - GitHub Actions matrix passed on Ubuntu, Windows, and macOS with Python 3.11 and 3.12.
 - Resumable checkpoints, `delphiopt resume`, provider capability checks, bounded concurrent probes, and interactive patch confirmation are included.
 - Best-of-N runs issue independent expert requests through a bounded concurrent batch (`scheduler.max_parallel`, default 4).
+- Project auto-detection now covers common test layouts and benchmark adapters; accepted patches verify the source has not changed during evaluation and revert partial sync failures.
 - The benchmark suite now contains 30 near-real tasks and a budget-matched runner for single, best-of-N, debate, fixed, difficulty, and adaptive Delphi conditions.
 - Dynamic profiling now records peak `tracemalloc` memory alongside cProfile hotspot evidence.
-- `48 passed`; concurrency-limit coverage and current EXE smoke tests passed.
-- EXE SHA256: `E15FC522D6A55777D71790822AC22C77E31619C7F0075317612B8FEC454420EF`
+- `51 passed`; concurrency-limit, source-change, and rollback coverage passed.
+- EXE SHA256: `05726BEC5763DCA295D8ACC8FDA506477233DB0EFEA65CBD327D053BB77D56C5`
