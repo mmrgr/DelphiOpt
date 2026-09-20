@@ -41,7 +41,7 @@ class LocalSandbox:
                 stderr=subprocess.PIPE,
                 text=True,
                 env=os.environ.copy(),
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
+                creationflags=int(getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)) if os.name == "nt" else 0,
                 start_new_session=os.name != "nt",
             )
             try:
